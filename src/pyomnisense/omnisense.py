@@ -2,7 +2,7 @@ import logging
 import aiohttp
 from bs4 import BeautifulSoup
 import re
-from typing import List, Optional, Union
+from typing import List, Dict, Optional, Union
 
 _LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -62,7 +62,7 @@ class Omnisense:
             self._session = None        
         
     async def get_site_list(self) -> dict:
-        """Fetch available sites using the provided credentials."""
+        """Fetch available sites using the provided credentials. this returns a dictionary of {site_id: site_name}"""
         if self._session is None:
             if not await self.login():
                 return {}
@@ -87,16 +87,32 @@ class Omnisense:
 
         return sites
     
-    async def get_site_sensor_list(self, site_ids: Union[str, List[str]] = None) -> dict:
-        '''  Fetch sensors for the selected site using the stored credentials.  Returns a dictionary of sensor_id: { description, sensor_type, site_name } '''
+    async def get_site_sensor_list(self, site_ids: Union[str, List[str], Dict[str, str]] = None) -> Dict[str, Dict[str, str]]:
+        '''  Fetch sensors for the selected site using the stored credentials.  
+        
+        Args:
+            site_ids (Union[str, List[str], Dict[str, str]]) : can be a dictionary in the form {site_id : site_name} or a list of site_id strings or a single site_id string. 
+                If not provided all sensors from all sites will be returned.
+                
+        Returns Dict[str, Dict[str, str, str]]: Returns a dictionary of Dict[sensor_id, Dict[description, sensor_type, site_name ]]'''
 
         if self._session is None:
             if not await self.login():
                 return {}
             
-        if isinstance(site_ids, str):
-            site_ids = [site_ids]            
+        if not site_ids:
+            site_ids = await self.get_site_list()
             
+        if isinstance(site_ids, str):
+            site_ids = [site_ids]
+        elif isinstance(site_ids, list):
+            #do nothing
+            pass
+        elif isinstance(site_ids, dict):
+            site_ids = list(site_ids.keys())  # Extract only the keys as a list
+        else:
+            raise TypeError("Unsupported data type, expected str, list of str, or dict with str keys.")
+                     
         sensors = {}
 
         try:
@@ -106,7 +122,7 @@ class Omnisense:
             if not sensor_data:
                 return {}
 
-            #only return a dictionary of sensor_id: description, sensor_type
+            #only return a dictionary of sensor_id: description, sensor_type, site_name
             for sensor_id, sensor_info in sensor_data.items():
                 sensors[sensor_id] = {"description" : sensor_info["description"], "sensor_type" : sensor_info["sensor_type"], "site_name" : sensor_info["site_name"]}
 
