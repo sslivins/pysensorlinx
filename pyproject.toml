@@ -1,0 +1,44 @@
+# pyproject.toml
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyomnisense"          
+version = "0.1.0"             
+description = "Python library for accessing Omnisense sensor data from omnisense.com"
+readme = "README.md"          
+license = { text = "MIT" }    
+authors = [
+  { name = "Stefan Slivinski", email = "sslivins@gmail.com" }
+]
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+# Runtime dependencies
+dependencies = [
+    "aiohttp>=3.8.1",
+    "beautifulsoup4>=4.11.1"
+]
+
+[project.optional-dependencies]
+tests = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.19.0",
+    "aioresponses>=2.0.0"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/sslivins/pyomnisense"
+"Bug Tracker" = "https://github.com/sslivins/pyomnisense/issues"
+
+[tool.setuptools]
+# Instruct setuptools to look in the 'src' folder.
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
