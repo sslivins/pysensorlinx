@@ -1,6 +1,6 @@
 # pyomnisense
 
-pyomnisense is a Python library for accessing Omnisense sensor data directly from the omnisense website. It supports logging into the service, retrieving site lists, and fetching sensor data.
+pyomnisense is a Python library for accessing Omnisense sensor data directly from the omnisense.com website. It supports logging into the service, retrieving site lists, and fetching sensor data.
 
 ## Features
 
@@ -32,6 +32,13 @@ async def main():
     # Get list of sites
     sites = await omnisense.get_site_list()
     print("Available sites:", sites)
+
+    #get list of all sensors from the first site
+    site_id = list(sites.keys())[0]
+
+    sensor_result = await omnisense.get_sensor_data(site_id)
+
+    print("Sensor Data for Site:", sensor_result)
     
     # When done, close the session
     await omnisense.close()
