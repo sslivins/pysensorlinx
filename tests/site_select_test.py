@@ -3,12 +3,13 @@ import pytest
 from aioresponses import aioresponses
 from pyomnisense.omnisense import Omnisense, LOGIN_URL, SITE_LIST_URL
 
+@pytest.mark.offline
 @pytest.mark.asyncio
 async def test_get_site_list():
-    # Load sample HTML content from local file
-    test_file_path = os.path.join(os.path.dirname(__file__), "samples", "site_list.html")
-    with open(test_file_path, "r", encoding="utf-8") as f:
-        html_content = f.read()
+    site_file_path = os.path.join(os.path.dirname(__file__), "samples", "site_list.html")
+    
+    with open(site_file_path, "r", encoding="utf-8") as f:
+        site_html = f.read()
     
     omnisense = Omnisense()
     
@@ -17,7 +18,7 @@ async def test_get_site_list():
         # Fake successful login response
         m.post(LOGIN_URL, status=200, body="Logged In!")
         # Fake site list GET request response with the sample HTML content
-        m.get(SITE_LIST_URL, status=200, body=html_content)
+        m.get(SITE_LIST_URL, status=200, body=site_html)
         
         # Call login, which will hit the faked LOGIN_URL endpoint
         login_result = await omnisense.login("testuser", "testpass")

@@ -9,7 +9,7 @@ pyomnisense is a Python library for accessing Omnisense sensor data directly fro
 - Fetch detailed sensor data for a selected site
 - Asynchronous methods using aiohttp
 
-## Installation
+## Install this repo
 
 Clone the repository and install in editable mode:
 
@@ -19,10 +19,16 @@ cd pyomnisense
 pip install -e .
 ```
 
+## Install from pypi.org
+
+```bash
+pip install pyomnisense
+```
+
 ## Usage
 
 ```python
-from pyomnisense.omnisense import Omnisense
+from pyomnisense import Omnisense
 
 async def main():
     omnisense = Omnisense()
@@ -33,17 +39,13 @@ async def main():
     sites = await omnisense.get_site_list()
     print("Available sites:", sites)
 
-    #get list of all sensors from the first site
-    site_id = list(sites.keys())[0]
+    sensor_data = await omnisense.get_sensor_data(sites)
 
-    sensor_result = await omnisense.get_sensor_data(site_id)
-
-    print("Sensor Data for Site:", sensor_result)
+    print("Sensor Data for Site:", sensor_data)
     
     # When done, close the session
     await omnisense.close()
 
-# Run the async main function using an event loop (e.g., in asyncio)
 import asyncio
 asyncio.run(main())
 ```

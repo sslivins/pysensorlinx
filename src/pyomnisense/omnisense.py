@@ -2,7 +2,7 @@ import logging
 import aiohttp
 from bs4 import BeautifulSoup
 import re
-from typing import List, Optional, Union
+from typing import List, Dict, Optional, Union
 
 _LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -25,6 +25,9 @@ class Omnisense:
         self._session = None
     
     async def login(self, username: str=None, password: str=None) -> bool:
+        ''' Login to the Omnisense website 
+        Returns: bool: True if login is successful, False otherwise
+        '''
 
         #if username/password are not provided, use the stored credentials
         if not username or not password:
@@ -62,7 +65,12 @@ class Omnisense:
             self._session = None        
         
     async def get_site_list(self) -> dict:
-        """Fetch available sites using the provided credentials."""
+        ''' fetch the available sites
+        
+        Returns: dict: Returns a dictionary of {site_id: site_name}
+
+        '''
+        
         if self._session is None:
             if not await self.login():
                 return {}
@@ -87,16 +95,32 @@ class Omnisense:
 
         return sites
     
-    async def get_site_sensor_list(self, site_ids: Union[str, List[str]] = None) -> dict:
-        '''  Fetch sensors for the selected site using the stored credentials.  Returns a dictionary of sensor_id: { description, sensor_type, site_name } '''
+    async def get_site_sensor_list(self, site_ids: Union[str, List[str], Dict[str, str]] = None) -> Dict[str, Dict[str, str]]:
+        '''  Fetch sensors for the selected site using the stored credentials.  
+        
+        Args:
+            site_ids (Union[str, List[str], Dict[str, str]]) : can be a dictionary in the form {site_id : site_name} or a list of site_id strings or a single site_id string. 
+                If not provided all sensors from all sites will be returned.
+                
+        Returns: Dict[str, Dict[str, str, str]]: Returns a dictionary of Dict[sensor_id, Dict[description, sensor_type, site_name ]]'''
 
         if self._session is None:
             if not await self.login():
                 return {}
             
-        if isinstance(site_ids, str):
-            site_ids = [site_ids]            
+        if not site_ids:
+            site_ids = await self.get_site_list()
             
+        if isinstance(site_ids, str):
+            site_ids = [site_ids]
+        elif isinstance(site_ids, list):
+            #do nothing
+            pass
+        elif isinstance(site_ids, dict):
+            site_ids = list(site_ids.keys())  # Extract only the keys as a list
+        else:
+            raise TypeError("Unsupported data type, expected str, list of str, or dict with str keys.")
+                     
         sensors = {}
 
         try:
@@ -106,7 +130,7 @@ class Omnisense:
             if not sensor_data:
                 return {}
 
-            #only return a dictionary of sensor_id: description, sensor_type
+            #only return a dictionary of sensor_id: description, sensor_type, site_name
             for sensor_id, sensor_info in sensor_data.items():
                 sensors[sensor_id] = {"description" : sensor_info["description"], "sensor_type" : sensor_info["sensor_type"], "site_name" : sensor_info["site_name"]}
 
@@ -116,18 +140,32 @@ class Omnisense:
         
         return sensors
 
-    async def get_sensor_data(self, site_ids: Union[str, List[str]] = None, sensor_ids: Union[str, List[str]] = []) -> dict:
-        """Fetch sensor data from Omnisense for specified sites and sensor_ids.  An empty sensor_ids list will return all sensors for the specified sites.
-        Returns a dictionary of sensor data in the form of sensor_id: { description, last_activity, status, temperature, relative_humidity, absolute_humidity, dew_point, wood_pct, battery_voltage, sensor_type, site_name } """
+    async def get_sensor_data(self, site_ids: Union[str, List[str], Dict[str, str]] = None, sensor_ids: Union[str, List[str]] = []) -> dict:
+        ''' Fetch the sensor data
+        
+        Args: 
+            site_ids (Union[str, List[str], Dict[str, str]]): A single site_id string or a list of site_id strings. If not provided, all sites will be searched.
+            sensor_ids (Union[str, List[str]]): A single sensor_id string or a list of sensor_id strings. If not provided, all sensors will be returned from all site(s).
+            
+        Returns: dict: Returns a dictionary of sensor data in the form of sensor_id: { description, last_activity, status, temperature, relative_humidity, absolute_humidity, dew_point, wood_pct, battery_voltage, sensor_type, site_name }
+        '''
+        
         if self._session is None:
             if not await self.login():
                 return {}
-
+            
         if not site_ids:
             site_ids = await self.get_site_list()
+            
+        if isinstance(site_ids, str):
+            site_ids = [site_ids]
+        elif isinstance(site_ids, list):
+            #do nothing
+            pass
+        elif isinstance(site_ids, dict):
+            site_ids = list(site_ids.keys())  # Extract only the keys as a list
         else:
-            if isinstance(site_ids, str):
-                site_ids = [site_ids]
+            raise TypeError("Unsupported data type, expected str, list of str, or dict with str keys.")
 
         if isinstance(sensor_ids, str):
             sensor_ids = [sensor_ids]

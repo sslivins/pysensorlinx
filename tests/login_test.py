@@ -3,6 +3,7 @@ import aiohttp
 from aioresponses import aioresponses
 from pyomnisense.omnisense import Omnisense, LOGIN_URL
 
+@pytest.mark.offline
 @pytest.mark.asyncio
 async def test_successful_login():
     omnisense = Omnisense()
@@ -15,6 +16,7 @@ async def test_successful_login():
         assert result is True
         await omnisense.close()
 
+@pytest.mark.offline
 @pytest.mark.asyncio
 async def test_failed_login_response_status():
     omnisense = Omnisense()
@@ -27,6 +29,7 @@ async def test_failed_login_response_status():
             await omnisense.login(username, password)
         assert "Login failed" in str(excinfo.value)
 
+@pytest.mark.offline
 @pytest.mark.asyncio
 async def test_failed_login_invalid_text():
     omnisense = Omnisense()
@@ -39,6 +42,7 @@ async def test_failed_login_invalid_text():
             await omnisense.login(username, password)
         assert "Login failed" in str(excinfo.value)
 
+@pytest.mark.offline
 @pytest.mark.asyncio
 async def test_no_credentials_provided():
     omnisense = Omnisense()
@@ -47,6 +51,7 @@ async def test_no_credentials_provided():
         await omnisense.login()
     assert "No username or password provided." in str(excinfo.value)
 
+@pytest.mark.offline
 @pytest.mark.asyncio
 async def test_close_session():
     omnisense = Omnisense()
