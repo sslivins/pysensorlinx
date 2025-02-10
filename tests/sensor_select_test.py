@@ -3,6 +3,7 @@ import pytest
 from aioresponses import aioresponses
 from pyomnisense.omnisense import Omnisense, LOGIN_URL, SITE_LIST_URL, SENSOR_LIST_URL
 
+@pytest.mark.offline
 @pytest.mark.asyncio
 async def test_get_sensor_list_no_args():
     # Load sample HTML content for the site list and sensor list from local files.
@@ -63,6 +64,7 @@ async def test_get_sensor_list_no_args():
         # Close the session to clean up.
         await omnisense.close()
 
+@pytest.mark.offline
 @pytest.mark.asyncio
 async def test_get_sensor_list_pass_site_id_dict():
     # Load sample HTML content for the site list and sensor list from local files.
@@ -125,6 +127,7 @@ async def test_get_sensor_list_pass_site_id_dict():
         # Close the session to clean up.
         await omnisense.close()
         
+@pytest.mark.offline        
 @pytest.mark.asyncio
 async def test_get_sensor_list_pass_site_id_list():
     # Load sample HTML content for the site list and sensor list from local files.
@@ -187,6 +190,7 @@ async def test_get_sensor_list_pass_site_id_list():
         # Close the session to clean up.
         await omnisense.close()
         
+@pytest.mark.offline        
 @pytest.mark.asyncio
 async def test_get_sensor_list_pass_single_site_id_string():
     # Load sample HTML content for the site list and sensor list from local files.

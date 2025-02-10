@@ -25,6 +25,9 @@ class Omnisense:
         self._session = None
     
     async def login(self, username: str=None, password: str=None) -> bool:
+        ''' Login to the Omnisense website 
+        Returns: bool: True if login is successful, False otherwise
+        '''
 
         #if username/password are not provided, use the stored credentials
         if not username or not password:
@@ -62,7 +65,12 @@ class Omnisense:
             self._session = None        
         
     async def get_site_list(self) -> dict:
-        """Fetch available sites using the provided credentials. this returns a dictionary of {site_id: site_name}"""
+        ''' fetch the available sites
+        
+        Returns: dict: Returns a dictionary of {site_id: site_name}
+
+        '''
+        
         if self._session is None:
             if not await self.login():
                 return {}

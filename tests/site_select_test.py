@@ -3,6 +3,7 @@ import pytest
 from aioresponses import aioresponses
 from pyomnisense.omnisense import Omnisense, LOGIN_URL, SITE_LIST_URL
 
+@pytest.mark.offline
 @pytest.mark.asyncio
 async def test_get_site_list():
     site_file_path = os.path.join(os.path.dirname(__file__), "samples", "site_list.html")
