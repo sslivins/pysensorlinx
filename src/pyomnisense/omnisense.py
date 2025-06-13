@@ -3,6 +3,8 @@ import aiohttp
 from bs4 import BeautifulSoup
 import re
 from typing import List, Dict, Optional, Union
+from urllib.parse import urlencode
+from http.cookies import SimpleCookie
 
 _LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -12,10 +14,10 @@ CONF_SENSOR_IDS = "sensor_ids"     # List of sensor IDs to extract (empty = all)
 CONF_USERNAME = "username"         # Login username
 CONF_PASSWORD = "password"         # Login password
 
+HOST_URL = "https://www.omnisense.com"
 LOGIN_URL = "https://www.omnisense.com/user_login.asp"
 SITE_LIST_URL = "https://www.omnisense.com/site_select.asp"
 SENSOR_LIST_URL = "https://www.omnisense.com/sensor_select.asp"
-
 
 class Omnisense:
 
@@ -23,13 +25,19 @@ class Omnisense:
         self._username = None
         self._password = None
         self._session = None
+        
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 "
+                        "Mobile Safari/537.36 Edg/138.0.0.0",
+        }
+        
+        #self.proxy_url = "http://127.0.0.1:8888"
+        self.proxy_url = None  # Set to None to disable proxy, or provide a valid proxy URL if needed
+                        
+        
     
     async def login(self, username: str=None, password: str=None) -> bool:
-        ''' Login to the Omnisense website 
-        Returns: bool: True if login is successful, False otherwise
-        '''
-
-        #if username/password are not provided, use the stored credentials
         if not username or not password:
             if not self._username or not self._password:
                 _LOGGER.error("No username or password provided.")
@@ -37,27 +45,58 @@ class Omnisense:
         else:
             self._username = username
             self._password = password
-
+            
+       
         payload = {
             "userId": self._username,
             "userPass": self._password,
+            "target": "",
             "btnAct": "Log-In",
-            "target": ""
         }
-        self._session = aiohttp.ClientSession()
-
-        try:
-            async with self._session.post(LOGIN_URL, data=payload, timeout=10) as response:
-                if response.status != 200 or "User Log-In" in await response.text():
-                    await self._session.close()  # Close the session if login fails
-                    self._session = None
-                    raise Exception("Login failed; check your credentials.")
-        except Exception as err:
-            _LOGGER.error("Error during login: %s", err)
-            raise err
         
-        _LOGGER.info("Login successful.")
-        return True
+
+        connector = aiohttp.TCPConnector()               
+        
+        self._session = aiohttp.ClientSession(connector=connector)
+        
+        connector = aiohttp.TCPConnector()    
+        
+        # 1. POST login (no redirects)
+        async with self._session.post(LOGIN_URL, data=payload, proxy=self.proxy_url, headers=self.headers, allow_redirects=False) as resp:
+            # 2. Build manual Cookie header (no quotes)
+            set_cookie_headers = resp.headers.getall('Set-Cookie', [])
+            cookies = SimpleCookie()
+            for h in set_cookie_headers:
+                cookies.load(h)
+
+            # --- IMPORTANT WORKAROUND ---
+            # aiohttp (and the Python standard library) will quote cookie values containing special characters,
+            # which breaks compatibility with legacy classic ASP and some ASP.NET applications.
+            # These servers expect unquoted cookie values—even if the value contains '=' or other special chars.
+            # The fix: manually build the Cookie header and add this to the headers rather than relying on aiohttp's cookie handling.
+            cookie_header = "; ".join(f"{key}={m.value}" for key, m in cookies.items())
+            # --- END WORKAROUND ---
+
+            # 3. Get the redirect location
+            location = resp.headers.get('Location')
+            if not location:
+                _LOGGER.error("No redirect location after login.")
+                return False
+            if not location.startswith("http"):
+                location = HOST_URL + location
+
+            # 4. Clear session cookies so aiohttp doesn't interfere
+            self._session.cookie_jar.clear()
+
+            # 5. Make GET to redirect target with manual Cookie header
+            self.headers['Cookie'] = cookie_header
+            async with self._session.get(location, proxy=self.proxy_url, headers=self.headers) as resp2:
+                final_url = str(resp2.url)
+                # Optionally, check resp2.status and/or content for further validation
+
+            # 6. Return True if we landed on the intended URL
+            return final_url == location
+                
 
     async def close(self):
         if self._session:
@@ -76,7 +115,7 @@ class Omnisense:
                 return {}
 
         try:
-            async with self._session.get(SITE_LIST_URL, timeout=10) as response:
+            async with self._session.get(SITE_LIST_URL, proxy=self.proxy_url, headers=self.headers, timeout=10) as response:
                 if response.status != 200:
                     raise Exception("Error fetching job sites page.")
                 soup = BeautifulSoup(await response.text(), "html.parser")
@@ -179,7 +218,7 @@ class Omnisense:
             sensor_page_url = f"{SENSOR_LIST_URL}?siteNbr={site_id}"
 
             try:
-                async with self._session.get(sensor_page_url, timeout=10) as response:
+                async with self._session.get(sensor_page_url, proxy=self.proxy_url, headers=self.headers, timeout=10) as response:
                     if response.status != 200:
                         raise Exception(f"Error fetching sensor data for site id '{site_id}'.")
                     soup = BeautifulSoup(await response.text(), "html.parser")
