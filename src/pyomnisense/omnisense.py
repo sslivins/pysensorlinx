@@ -54,20 +54,20 @@ class Omnisense:
             "btnAct": "Log-In",
         }
         
-
-        connector = aiohttp.TCPConnector()               
-        
-        self._session = aiohttp.ClientSession(connector=connector)
-        
-        connector = aiohttp.TCPConnector()    
+        self._session = aiohttp.ClientSession()
         
         # 1. POST login (no redirects)
         async with self._session.post(LOGIN_URL, data=payload, proxy=self.proxy_url, headers=self.headers, allow_redirects=False) as resp:
+            _LOGGER.debug("POST %s status: %s", LOGIN_URL, resp.status)
+            _LOGGER.debug("POST response headers: %s", dict(resp.headers))
+            _LOGGER.debug("POST response cookies: %s", resp.cookies)
             # 2. Build manual Cookie header (no quotes)
             set_cookie_headers = resp.headers.getall('Set-Cookie', [])
+            _LOGGER.debug("Set-Cookie headers: %s", set_cookie_headers)
             cookies = SimpleCookie()
             for h in set_cookie_headers:
                 cookies.load(h)
+            _LOGGER.debug("Parsed cookies: %s", {k: v.value for k, v in cookies.items()})
 
             # --- IMPORTANT WORKAROUND ---
             # aiohttp (and the Python standard library) will quote cookie values containing special characters,
@@ -75,26 +75,34 @@ class Omnisense:
             # These servers expect unquoted cookie values—even if the value contains '=' or other special chars.
             # The fix: manually build the Cookie header and add this to the headers rather than relying on aiohttp's cookie handling.
             cookie_header = "; ".join(f"{key}={m.value}" for key, m in cookies.items())
+            _LOGGER.debug("Manual Cookie header: %s", cookie_header)
             # --- END WORKAROUND ---
 
             # 3. Get the redirect location
             location = resp.headers.get('Location')
+            _LOGGER.debug("Redirect location: %s", location)
             if not location:
                 _LOGGER.error("No redirect location after login.")
                 return False
             if not location.startswith("http"):
                 location = HOST_URL + location
+                _LOGGER.debug("Full redirect location: %s", location)
 
             # 4. Clear session cookies so aiohttp doesn't interfere
             self._session.cookie_jar.clear()
+            _LOGGER.debug("Session cookies cleared.")
 
             # 5. Make GET to redirect target with manual Cookie header
             self.headers['Cookie'] = cookie_header
+            _LOGGER.debug("GET %s with headers: %s", location, self.headers)
             async with self._session.get(location, proxy=self.proxy_url, headers=self.headers) as resp2:
                 final_url = str(resp2.url)
+                _LOGGER.debug("GET response status: %s", resp2.status)
+                _LOGGER.debug("GET response URL: %s", final_url)
                 # Optionally, check resp2.status and/or content for further validation
 
             # 6. Return True if we landed on the intended URL
+            _LOGGER.debug("Final URL after login: %s (success=%s)", final_url, final_url == location)
             return final_url == location
                 
 
