@@ -56,7 +56,7 @@ async def test_failed_login_redirect_to_signin():
     username = "testuser"
     password = "wrongpass"
     # Simulate a failed login: POST returns 302 redirecting back to LOGIN_URL
-    set_cookie_value = "ASP.NET_SessionId=abc123; Path=/; HttpOnly"
+    set_cookie_value = "userPNSToken=login+failed; Path=/"
     redirect_location = "/user_login.asp"
 
     with aioresponses() as m:
@@ -65,14 +65,9 @@ async def test_failed_login_redirect_to_signin():
             status=302,
             headers={
                 "Set-Cookie": set_cookie_value,
-                "Location": "/site_select.asp",
+                "Location": "/user_login.asp",
             },
             body="",
-        )
-        m.get(
-            f"{HOST_URL}{redirect_location}",
-            status=200,
-            body="User Log-In",
         )
 
         result = await omnisense.login(username, password)
@@ -87,6 +82,7 @@ async def test_no_credentials_provided():
     with pytest.raises(Exception) as excinfo:
         await omnisense.login()
     assert "No username or password provided." in str(excinfo.value)
+    await omnisense.close()
 
 @pytest.mark.offline
 @pytest.mark.asyncio

@@ -1,7 +1,7 @@
 import os
 import pytest
 from aioresponses import aioresponses
-from pyomnisense.omnisense import Omnisense, LOGIN_URL, SITE_LIST_URL
+from pyomnisense.omnisense import Omnisense, LOGIN_URL, SITE_LIST_URL, HOST_URL
 
 @pytest.mark.offline
 @pytest.mark.asyncio
@@ -13,10 +13,27 @@ async def test_get_site_list():
     
     omnisense = Omnisense()
     
-    # Use a single aioresponses context to fake both login and site select requests
+    set_cookie_value = "ASP.NET_SessionId=abc123; Path=/; HttpOnly"
+    redirect_location = "/site_select.asp"    
+    
+    # Use aioresponses context to fake all external HTTP calls.
     with aioresponses() as m:
-        # Fake successful login response
-        m.post(LOGIN_URL, status=200, body="Logged In!")
+        # Mock the POST to LOGIN_URL with Set-Cookie and Location headers
+        m.post(
+            LOGIN_URL,
+            status=302,
+            headers={
+                "Set-Cookie": set_cookie_value,
+                "Location": redirect_location,
+            },
+            body="",
+        )
+        # Mock the GET to the redirect location with the manual Cookie header
+        m.get(
+            f"{HOST_URL}{redirect_location}",
+            status=200,
+            body="Welcome to your dashboard",
+        )
         # Fake site list GET request response with the sample HTML content
         m.get(SITE_LIST_URL, status=200, body=site_html)
         

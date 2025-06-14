@@ -66,6 +66,12 @@ class Omnisense:
             _LOGGER.debug("Set-Cookie headers: %s", set_cookie_headers)
             cookies = SimpleCookie()
             for h in set_cookie_headers:
+                _LOGGER.debug(f"Processing Set-Cookie header: {h}")
+                if h.startswith("userPNSToken=login+failed;"):
+                    _LOGGER.error("Login failed: userPNSToken=login+failed detected in cookies.")
+                    await self._session.close()
+                    self._session = None
+                    return False
                 cookies.load(h)
             _LOGGER.debug("Parsed cookies: %s", {k: v.value for k, v in cookies.items()})
 
