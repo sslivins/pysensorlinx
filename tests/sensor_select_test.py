@@ -1,7 +1,7 @@
 import os
 import pytest
 from aioresponses import aioresponses
-from pyomnisense.omnisense import Omnisense, LOGIN_URL, SITE_LIST_URL, SENSOR_LIST_URL
+from pyomnisense.omnisense import Omnisense, LOGIN_URL, SITE_LIST_URL, SENSOR_LIST_URL, HOST_URL
 
 @pytest.mark.offline
 @pytest.mark.asyncio
@@ -22,10 +22,27 @@ async def test_get_sensor_list_no_args():
     
     omnisense = Omnisense()
     
+    set_cookie_value = "ASP.NET_SessionId=abc123; Path=/; HttpOnly"
+    redirect_location = "/site_select.asp"    
+    
     # Use aioresponses context to fake all external HTTP calls.
     with aioresponses() as m:
-        # Fake successful login response.
-        m.post(LOGIN_URL, status=200, body="Logged In!")
+        # Mock the POST to LOGIN_URL with Set-Cookie and Location headers
+        m.post(
+            LOGIN_URL,
+            status=302,
+            headers={
+                "Set-Cookie": set_cookie_value,
+                "Location": redirect_location,
+            },
+            body="",
+        )
+        # Mock the GET to the redirect location with the manual Cookie header
+        m.get(
+            f"{HOST_URL}{redirect_location}",
+            status=200,
+            body="Welcome to your dashboard",
+        )
         
         # Call login, which hits the faked LOGIN_URL.
         login_result = await omnisense.login("testuser", "testpass")
@@ -83,10 +100,27 @@ async def test_get_sensor_list_pass_site_id_dict():
     
     omnisense = Omnisense()
     
+    set_cookie_value = "ASP.NET_SessionId=abc123; Path=/; HttpOnly"
+    redirect_location = "/site_select.asp"    
+    
     # Use aioresponses context to fake all external HTTP calls.
     with aioresponses() as m:
-        # Fake successful login response.
-        m.post(LOGIN_URL, status=200, body="Logged In!")
+        # Mock the POST to LOGIN_URL with Set-Cookie and Location headers
+        m.post(
+            LOGIN_URL,
+            status=302,
+            headers={
+                "Set-Cookie": set_cookie_value,
+                "Location": redirect_location,
+            },
+            body="",
+        )
+        # Mock the GET to the redirect location with the manual Cookie header
+        m.get(
+            f"{HOST_URL}{redirect_location}",
+            status=200,
+            body="Welcome to your dashboard",
+        )
         
         # Call login, which hits the faked LOGIN_URL.
         login_result = await omnisense.login("testuser", "testpass")
@@ -146,10 +180,27 @@ async def test_get_sensor_list_pass_site_id_list():
     
     omnisense = Omnisense()
     
+    set_cookie_value = "ASP.NET_SessionId=abc123; Path=/; HttpOnly"
+    redirect_location = "/site_select.asp"    
+    
     # Use aioresponses context to fake all external HTTP calls.
     with aioresponses() as m:
-        # Fake successful login response.
-        m.post(LOGIN_URL, status=200, body="Logged In!")
+        # Mock the POST to LOGIN_URL with Set-Cookie and Location headers
+        m.post(
+            LOGIN_URL,
+            status=302,
+            headers={
+                "Set-Cookie": set_cookie_value,
+                "Location": redirect_location,
+            },
+            body="",
+        )
+        # Mock the GET to the redirect location with the manual Cookie header
+        m.get(
+            f"{HOST_URL}{redirect_location}",
+            status=200,
+            body="Welcome to your dashboard",
+        )
         
         # Call login, which hits the faked LOGIN_URL.
         login_result = await omnisense.login("testuser", "testpass")
@@ -209,10 +260,27 @@ async def test_get_sensor_list_pass_single_site_id_string():
     
     omnisense = Omnisense()
     
+    set_cookie_value = "ASP.NET_SessionId=abc123; Path=/; HttpOnly"
+    redirect_location = "/site_select.asp"    
+    
     # Use aioresponses context to fake all external HTTP calls.
     with aioresponses() as m:
-        # Fake successful login response.
-        m.post(LOGIN_URL, status=200, body="Logged In!")
+        # Mock the POST to LOGIN_URL with Set-Cookie and Location headers
+        m.post(
+            LOGIN_URL,
+            status=302,
+            headers={
+                "Set-Cookie": set_cookie_value,
+                "Location": redirect_location,
+            },
+            body="",
+        )
+        # Mock the GET to the redirect location with the manual Cookie header
+        m.get(
+            f"{HOST_URL}{redirect_location}",
+            status=200,
+            body="Welcome to your dashboard",
+        )
         
         # Call login, which hits the faked LOGIN_URL.
         login_result = await omnisense.login("testuser", "testpass")
