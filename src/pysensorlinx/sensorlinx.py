@@ -16,6 +16,8 @@ CONF_PASSWORD = "password"         # Login password
 HOST_URL = "https://mobile.sensorlinx.co"
 LOGIN_ENDPOINT = "account/login"
 PROFILE_ENDPOINT = "account/me"
+BUILDINGS_ENDPOINT = "buildings"
+DEVICES_ENDPOINT_TEMPLATE = "buildings/{building_id}/devices"
 
 class Sensorlinx:
 
@@ -73,13 +75,111 @@ class Sensorlinx:
                 # Add Authorization header for future requests
                 self.headers["Authorization"] = f"Bearer {self._bearer_token}"
                 
-                _LOGGER.debug(f"Login successful for user {self._username}. Bearer token: {self._bearer_token}")
-                
                 return True
         except Exception as e:
             _LOGGER.error(f"Exception during login: {e}")
             return False
-                
+        
+    async def get_profile(self) -> Optional[Dict[str, str]]:
+        ''' Fetch the user profile information
+        
+        Returns: Optional[Dict[str, str]]: Returns a dictionary with user profile information or None if not logged in.
+        '''
+        
+        if self._session is None:
+            if not await self.login():
+                return None
+
+        profile_url = f"{HOST_URL}/{PROFILE_ENDPOINT}"
+        try:
+            async with self._session.get(
+                profile_url,
+                headers=self.headers,
+                proxy=self.proxy_url,
+                timeout=10
+            ) as resp:
+                if resp.status != 200:
+                    _LOGGER.error(f"Failed to fetch profile with status {resp.status}")
+                    return None
+                data = await resp.json()
+                return data
+        except Exception as e:
+            _LOGGER.error(f"Exception fetching profile: {e}")
+            return None
+
+    async def get_buildings(self, building_id: Optional[str] = None) -> Optional[Union[List[Dict[str, str]], Dict[str, str]]]:
+        ''' Fetch the list of buildings or a specific building by ID
+        
+        Args:
+            building_id (Optional[str]): If provided, fetches the building with this ID. Otherwise, fetches all buildings.
+        
+        Returns: 
+            Optional[Union[List[Dict[str, str]], Dict[str, str]]]: 
+                - If building_id is None, returns a list of building dicts or None if not logged in.
+                - If building_id is provided, returns a dict for the building or None if not found.
+        '''
+        if self._session is None:
+            if not await self.login():
+                return None
+
+        if building_id:
+            buildings_url = f"{HOST_URL}/{BUILDINGS_ENDPOINT}/{building_id}"
+        else:
+            buildings_url = f"{HOST_URL}/{BUILDINGS_ENDPOINT}"
+
+        try:
+            async with self._session.get(
+                buildings_url,
+                headers=self.headers,
+                proxy=self.proxy_url,
+                timeout=10
+            ) as resp:
+                if resp.status != 200:
+                    _LOGGER.error(f"Failed to fetch building(s) with status {resp.status}")
+                    return None
+                data = await resp.json()
+                return data
+        except Exception as e:
+            _LOGGER.error(f"Exception fetching building(s): {e}")
+            return None
+        
+    async def get_devices(self, building_id: str, device_id: Optional[str] = None) -> Optional[Union[List[Dict[str, str]], Dict[str, str]]]:
+        ''' Fetch devices for a given building, or a specific device if device_id is provided
+
+        Args:
+            building_id (str): The ID of the building.
+            device_id (Optional[str]): The ID of the device. If not provided, fetches all devices for the building.
+
+        Returns:
+            Optional[Union[List[Dict[str, str]], Dict[str, str]]]: 
+                - If device_id is None, returns a list of device dicts or None if not found or error.
+                - If device_id is provided, returns a dict for the device or None if not found or error.
+        '''
+        if self._session is None:
+            if not await self.login():
+                return None
+
+        if device_id:
+            url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}/{device_id}"
+        else:
+            url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}"
+
+        try:
+            async with self._session.get(
+                url,
+                headers=self.headers,
+                proxy=self.proxy_url,
+                timeout=10
+            ) as resp:
+                if resp.status != 200:
+                    _LOGGER.error(f"Failed to fetch device(s) with status {resp.status}")
+                    return None
+                data = await resp.json()
+                return data
+        except Exception as e:
+            _LOGGER.error(f"Exception fetching device(s): {e}")
+            return None
+
 
     async def close(self):
         if self._session:
