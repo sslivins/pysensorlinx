@@ -5,9 +5,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyomnisense"          
+name = "pysensorlinx"          
 version = "0.1.2"             
-description = "Python library for accessing Omnisense sensor data from omnisense.com"
+description = "Python library for accessing SensorLinx Device Data"
 readme = "README.md"          
 license = { text = "MIT" }    
 authors = [
@@ -21,8 +21,7 @@ classifiers = [
 ]
 # Runtime dependencies
 dependencies = [
-    "aiohttp>=3.11.12",
-    "beautifulsoup4>=4.13.3"
+    "aiohttp>=3.11.12"
 ]
 
 [project.optional-dependencies]
@@ -34,8 +33,8 @@ tests = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/sslivins/pyomnisense"
-"Bug Tracker" = "https://github.com/sslivins/pyomnisense/issues"
+"Homepage" = "https://github.com/sslivins/pysensorlinx"
+"Bug Tracker" = "https://github.com/sslivins/pysensorlinx/issues"
 
 [tool.setuptools]
 # Instruct setuptools to look in the 'src' folder.

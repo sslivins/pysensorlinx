@@ -1,6 +1,6 @@
-# pyomnisense
+# pysensorlinx
 
-pyomnisense is a Python library for accessing Omnisense sensor data directly from the omnisense.com website. It supports logging into the service, retrieving site lists, and fetching sensor data.
+pysensorlinx is a Python library for accessing Omnisense sensor data directly from the sensorlinx.com website. It supports logging into the service, retrieving site lists, and fetching sensor data.
 
 ## Features
 
@@ -14,45 +14,61 @@ pyomnisense is a Python library for accessing Omnisense sensor data directly fro
 Clone the repository and install in editable mode:
 
 ```bash
-git clone https://github.com/your_username/pyomnisense.git
-cd pyomnisense
+git clone https://github.com/your_username/pysensorlinx.git
+cd pysensorlinx
+```
+
+### Create and activate a virtual environment
+
+**On Windows:**
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+**On macOS/Linux:**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Once the virtual environment is activated, install the package in editable mode:
+
+```bash
 pip install -e .
 ```
 
 ## Install from pypi.org
 
 ```bash
-pip install pyomnisense
+pip install pysensorlinx
 ```
 
 ## Usage
 
 ```python
-from pyomnisense import Omnisense
+from pysensorlinx import Omnisense
 
 async def main():
-    omnisense = Omnisense()
+    sensorlinx = Sensorlinx()
     # Login with your credentials
-    await omnisense.login("your_username", "your_password")
+    await sensorlinx.login("your_username", "your_password")
     
-    # Get list of sites
-    sites = await omnisense.get_site_list()
-    print("Available sites:", sites)
 
-    sensor_data = await omnisense.get_sensor_data(sites)
-
-    print("Sensor Data for Site:", sensor_data)
     
     # When done, close the session
-    await omnisense.close()
+    await sensorlinx.close()
 
 import asyncio
 asyncio.run(main())
 ```
 
-Replace `"your_username"` and `"your_password"` with your actual Omnisense credentials. For more details, refer to the documentation or explore the source code.
+Replace `"your_username"` and `"your_password"` with your actual Sensorlinx credentials. For more details, refer to the documentation or explore the source code.
 
 ## Testing
 Tests are written using pytest and pytest-asyncio. You can run tests as follows:
+
+```bash
+pip install -e .[tests]
 
 pytest
