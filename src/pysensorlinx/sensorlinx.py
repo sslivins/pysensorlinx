@@ -1,9 +1,10 @@
 import logging
-import aiohttp
 import re
 from typing import List, Dict, Optional, Union
 from urllib.parse import urlencode
 from http.cookies import SimpleCookie
+import asyncio
+import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -18,6 +19,18 @@ LOGIN_ENDPOINT = "account/login"
 PROFILE_ENDPOINT = "account/me"
 BUILDINGS_ENDPOINT = "buildings"
 DEVICES_ENDPOINT_TEMPLATE = "buildings/{building_id}/devices"
+
+class LoginError(Exception):
+    """Base exception for login failures."""
+
+class LoginTimeoutError(LoginError):
+    """Raised when login times out."""
+
+class InvalidCredentialsError(LoginError):
+    """Raised when credentials are invalid."""
+
+class NoTokenError(LoginError):
+    """Raised when no token is received after login."""
 
 class Temperature:
     def __init__(self, value: float, unit: str = "C"):
@@ -70,11 +83,24 @@ class Sensorlinx:
                         
         
     
-    async def login(self, username: str=None, password: str=None) -> bool:
+    async def login(self, username: str=None, password: str=None) -> None:
+        """
+        Attempt to log in to the Sensorlinx service.
+
+        Args:
+            username (str, optional): The username to use for login.
+            password (str, optional): The password to use for login.
+
+        Raises:
+            InvalidCredentialsError: If the credentials are missing or invalid.
+            LoginTimeoutError: If the login request times out.
+            NoTokenError: If no bearer token is received after login.
+            LoginError: For other login-related errors.
+        """
         if not username or not password:
             if not self._username or not self._password:
                 _LOGGER.error("No username or password provided.")
-                raise Exception("No username or password provided.")
+                raise InvalidCredentialsError("No username or password provided.")
         else:
             self._username = username
             self._password = password
@@ -94,22 +120,25 @@ class Sensorlinx:
                 proxy=self.proxy_url,
                 timeout=10
             ) as resp:
+                if resp.status == 401:
+                    _LOGGER.error("Invalid credentials.")
+                    raise InvalidCredentialsError("Invalid username or password.")
                 if resp.status != 200:
                     _LOGGER.error(f"Login failed with status {resp.status}")
-                    return False
+                    raise LoginError(f"Login failed with status {resp.status}")
                 data = await resp.json()
                 self._bearer_token = data.get("token")
                 self._refresh_token = data.get("refresh")
                 if not self._bearer_token:
                     _LOGGER.error("No bearer token received during login.")
-                    return False
-                # Add Authorization header for future requests
+                    raise NoTokenError("No bearer token received during login.")
                 self.headers["Authorization"] = f"Bearer {self._bearer_token}"
-                
-                return True
+        except asyncio.TimeoutError:
+            _LOGGER.error("Login request timed out.")
+            raise LoginTimeoutError("Login request timed out.")
         except Exception as e:
-            _LOGGER.error(f"Exception during login: {e}")
-            return False
+            _LOGGER.exception(f"Exception during login: {e}")
+            raise LoginError(f"Exception during login: {e}")
         
     async def get_profile(self) -> Optional[Dict[str, str]]:
         ''' Fetch the user profile information
@@ -316,6 +345,31 @@ class SensorlinxDevice:
         self.sensorlinx = sensorlinx
         self.building_id = building_id
         self.device_id = device_id
+        
+    '''
+        #################################################################################################################################
+        #
+        #                                               Device Settings - Set Methods
+        # 
+        #################################################################################################################################   
+    '''
+    async def set_hvac_mode_priority(self, value: str) -> bool:
+        """
+        Set the HVAC mode priority for the device.
+
+        Args:
+            value (str): The HVAC mode priority to set (e.g., "heat", "cool" or "auto").
+
+        Returns:
+            bool: True if the parameter was set successfully, False otherwise.
+        """
+        if value not in ["cool", "heat", "auto"]:
+            _LOGGER.error("Invalid HVAC mode priority. Must be 'cool', 'heat' or 'auto'.")
+            return False
+        
+        return await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, hvac_mode_priority=value
+        )
 
     async def set_permanent_hd(self, value: bool) -> bool:
         """
@@ -331,18 +385,6 @@ class SensorlinxDevice:
             self.building_id, self.device_id, permanent_hd=value
         )
         
-    # async def get_permanent_hd(self) -> Optional[bool]:
-    #     """
-    #     Get the current permanent heating demand setting for the device.
-
-    #     Returns:
-    #         Optional[bool]: True if permanent heating demand is enabled, False if disabled, None if not set.
-    #     """
-    #     device = await self.sensorlinx.get_devices(self.building_id, self.device_id)
-    #     if device and "permHD" in device:
-    #         return device["permHD"]
-    #     return None
-
     async def set_permanent_cd(self, value: bool) -> bool:
         """
         Set the permanent cooling demand parameter for the device.
@@ -385,36 +427,34 @@ class SensorlinxDevice:
             self.building_id, self.device_id, warm_weather_shutdown=value
         )
         
-    async def set_hvac_mode_priority(self, value: str) -> bool:
-        """
-        Set the HVAC mode priority for the device.
 
-        Args:
-            value (str): The HVAC mode priority to set (e.g., "heat", "cool" or "auto").
+        
+        
+    '''
+        #################################################################################################################################
+                                                METHODS TO GET PARAMETERS
+        #################################################################################################################################
 
-        Returns:
-            bool: True if the parameter was set successfully, False otherwise.
-        """
-        if value not in ["cool", "heat", "auto"]:
-            _LOGGER.error("Invalid HVAC mode priority. Must be 'cool', 'heat' or 'auto'.")
-            return False
-        
-        return await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, hvac_mode_priority=value
-        )
-        
-    async def get_temperatures(self, title: Optional[str] = None) -> Optional[Dict[str, Dict[str, Optional[Temperature]]]]:
+    '''
+
+    async def get_temperatures(
+        self, 
+        temp_name: Optional[str] = None, 
+        device: Optional[Dict] = None
+    ) -> Optional[Dict[str, Dict[str, Optional[Temperature]]]]:
         """
         Get the current temperatures for the device.
 
         Args:
-            title (Optional[str]): The title of the temperature sensor to retrieve. If None, retrieves all.
+            temp_name (Optional[str]): The name of the temperature sensor to retrieve. If None, retrieves all.
+            device (Optional[Dict]): If provided, use this device dict instead of fetching from API, this should be the result of get_devices().
 
         Returns:
             Optional[Dict[str, Dict[str, Optional[Temperature]]]]: 
                 A dictionary with sensor titles as keys and dicts with 'actual' and 'target' Temperature instances as values, or None if not found.
         """
-        device = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+        if device is None:
+            device = await self.sensorlinx.get_devices(self.building_id, self.device_id)
         if not device or "temps" not in device:
             return None
 
@@ -423,7 +463,7 @@ class SensorlinxDevice:
             sensor_title = temp_info.get("title")
             if sensor_title is None:
                 continue  # Skip entries with null titles
-            if title and sensor_title != title:
+            if temp_name and sensor_title != temp_name:
                 continue
             actual = temp_info.get("actual")
             target = temp_info.get("target")
