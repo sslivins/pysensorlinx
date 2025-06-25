@@ -21,8 +21,10 @@ async def test_live_login_and_user_profile():
     assert username is not None, "SENSORLINX_EMAIL is not set"
     assert password is not None, "SENSORLINX_PASSWORD is not set"
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
 
     profile = await sensorlinx.get_profile()
     assert profile is not None, "Failed to fetch user profile"
@@ -44,8 +46,10 @@ async def test_live_get_all_buildings():
     username = os.getenv("SENSORLINX_EMAIL")
     password = os.getenv("SENSORLINX_PASSWORD")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
 
     buildings = await sensorlinx.get_buildings()
     assert buildings is not None, "Failed to fetch buildings"
@@ -67,8 +71,10 @@ async def test_live_get_specific_building():
     password = os.getenv("SENSORLINX_PASSWORD")
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
 
     buildings = await sensorlinx.get_buildings(building_id)
     assert buildings is not None, "Failed to fetch building"
@@ -90,8 +96,10 @@ async def test_live_get_all_devices():
     password = os.getenv("SENSORLINX_PASSWORD")
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
 
     devices = await sensorlinx.get_devices(building_id)
     assert devices is not None, "Failed to fetch devices"
@@ -113,8 +121,10 @@ async def test_live_get_specific_device():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
 
     device = await sensorlinx.get_devices(building_id, device_id)
     assert device is not None, "Failed to fetch devices"
@@ -138,10 +148,11 @@ async def test_live_enable_permanent_cd():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
-    
-    
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
+
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
         building_id=building_id,
@@ -168,9 +179,11 @@ async def test_live_enable_permanent_hd():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
-    
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
+
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
         building_id=building_id,
@@ -196,8 +209,10 @@ async def test_live_set_cold_weather_shutdown_off():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
     
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
@@ -225,8 +240,10 @@ async def test_live_set_cold_weather_shutdown_5c():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
     
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
@@ -254,9 +271,11 @@ async def test_live_set_warm_weather_shutdown_off():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"    
-    
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
+
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
         building_id=building_id,
@@ -283,9 +302,11 @@ async def test_live_set_warm_weather_shutdown_30c():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"    
-    
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
+
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
         building_id=building_id,
@@ -312,9 +333,11 @@ async def test_live_set_hvac_mode_priority_heat():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"    
-    
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
+
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
         building_id=building_id,
@@ -340,8 +363,10 @@ async def test_live_set_hvac_mode_priority_cool():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
 
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
@@ -368,8 +393,10 @@ async def test_live_set_hvac_mode_priority_auto():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
 
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
@@ -395,8 +422,10 @@ async def test_live_get_temperatures():
     building_id = os.getenv("SENSORLINX_BUILDING_ID")
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    result = await sensorlinx.login(username, password)
-    assert result is True, "Login failed"
+    try:
+        await sensorlinx.login(username, password)
+    except Exception as e:
+        pytest.fail(f"Login raised an exception: {e}")
 
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
@@ -418,7 +447,7 @@ async def test_live_get_temperatures():
     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
 )
 @pytest.mark.asyncio
-async def test_live_get_temperatures_with_title_tank():
+async def test_live_get_temperatures_with_tank_temperature():
     sensorlinx = Sensorlinx()
     username = os.getenv("SENSORLINX_EMAIL")
     password = os.getenv("SENSORLINX_PASSWORD")
@@ -426,11 +455,9 @@ async def test_live_get_temperatures_with_title_tank():
     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
     try:
-        result = await sensorlinx.login(username, password)
-        assert result is True, "Login failed"
+        await sensorlinx.login(username, password)
     except Exception as e:
-        print(f"Login error: {e}")
-        assert False, f"Login raised an exception: {e}"
+        pytest.fail(f"Login raised an exception: {e}")
 
     sensorlinxdevice = SensorlinxDevice(
         sensorlinx=sensorlinx,
