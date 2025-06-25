@@ -19,6 +19,37 @@ PROFILE_ENDPOINT = "account/me"
 BUILDINGS_ENDPOINT = "buildings"
 DEVICES_ENDPOINT_TEMPLATE = "buildings/{building_id}/devices"
 
+class Temperature:
+    def __init__(self, value: float, unit: str = "C"):
+        unit = unit.upper()
+        if unit not in ("C", "F"):
+            raise ValueError("Unit must be 'C' for Celsius or 'F' for Fahrenheit")
+        self.value = float(value)
+        self.unit = unit
+
+    def to_celsius(self) -> float:
+        if self.unit == "C":
+            return self.value
+        return (self.value - 32) * 5.0 / 9.0
+
+    def to_fahrenheit(self) -> float:
+        if self.unit == "F":
+            return self.value
+        return self.value * 9.0 / 5.0 + 32
+
+    def as_celsius(self):
+        return Temperature(self.to_celsius(), "C")
+
+    def as_fahrenheit(self):
+        return Temperature(self.to_fahrenheit(), "F")
+
+    def __repr__(self):
+        return f"Temperature({self.value:.2f}, '{self.unit}')"
+
+    def __str__(self):
+        symbol = "°C" if self.unit == "C" else "°F"
+        return f"{self.value:.2f}{symbol}"
+
 class Sensorlinx:
 
     def __init__(self): 
@@ -161,6 +192,7 @@ class Sensorlinx:
 
         if device_id:
             url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}/{device_id}"
+            _LOGGER.debug(f"Fetching URL: {url}")
         else:
             url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}"
 
@@ -181,184 +213,226 @@ class Sensorlinx:
             return None
 
 
+
+    async def set_device_parameter(self, building_id: str, device_id: str, 
+                                   permanent_hd: Optional[bool] = None, 
+                                   permanent_cd: Optional[bool] = None, 
+                                   cold_weather_shutdown: Optional[Union[Temperature, str]] = None, 
+                                   warm_weather_shutdown: Optional[Union[Temperature, str]] = None, 
+                                   hvac_mode_priority: Optional[str] = None) -> bool:
+        """
+        Set permanent heating and/or cooling demand for a specific device.
+
+        Args:
+            building_id (str): The ID of the building (required).
+            device_id (str): The ID of the device (required).
+            permanent_hd (Optional[bool]): If True, always maintain buffer tank target temperature (heating).
+            permanent_cd (Optional[bool]): If True, always maintain buffer tank target temperature (cooling).
+            cold_weather_shutdown (Optional[Temperature or str]): when in cooling mode shuts the heat pump off below this temperature, or 'off' to disable.
+            warm_weather_shutdown (Optional[Temperature or str]): when in heating mode shuts the heat pump off above this temperature, or 'off' to disable.
+            hvac_mode_priority (Optional[str]): The HVAC mode priority to set (e.g., "cool", "heat", "auto").
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+        if not building_id or not device_id:
+            _LOGGER.error("Both building_id and device_id must be provided.")
+            return False
+
+        if self._session is None:
+            if not await self.login():
+                return False
+
+        url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}/{device_id}"
+        payload = {}
+        if permanent_hd is not None:
+            payload["permHD"] = permanent_hd
+        if permanent_cd is not None:
+            payload["permCD"] = permanent_cd
+        if cold_weather_shutdown is not None:
+            if isinstance(cold_weather_shutdown, str) and cold_weather_shutdown.lower() == "off":
+                payload["cwsd"] = 32
+            elif isinstance(cold_weather_shutdown, Temperature):
+                payload["cwsd"] = round(cold_weather_shutdown.to_fahrenheit())
+        if warm_weather_shutdown is not None:
+            if isinstance(warm_weather_shutdown, str) and warm_weather_shutdown.lower() == "off":
+                payload["wwsd"] = 32
+            elif isinstance(warm_weather_shutdown, Temperature):
+                payload["wwsd"] = round(warm_weather_shutdown.to_fahrenheit())
+        if hvac_mode_priority is not None:
+            if hvac_mode_priority == "heat":
+                payload["prior"] = 0
+            elif hvac_mode_priority == "cool":
+                payload["prior"] = 1
+            elif hvac_mode_priority == "auto":
+                payload["prior"] = 2
+            else:
+                return False
+
+        if not payload:
+            _LOGGER.error("At least one optional parameter must be provided")
+            return False
+
+        try:
+            async with self._session.patch(
+                url,
+                json=payload,
+                headers={**self.headers, "Content-Type": "application/json"},
+                proxy=self.proxy_url,
+                timeout=10
+            ) as resp:
+                if resp.status != 200:
+                    _LOGGER.error(f"Failed to set permanent demand with status {resp.status}")
+                    return False
+                _LOGGER.debug(f"Response from setting permanent demand: {await resp.json()}")
+                return True
+        except Exception as e:
+            _LOGGER.error(f"Exception setting permanent demand: {e}")
+            return False
+
     async def close(self):
         if self._session:
             await self._session.close()
-            self._session = None        
+            self._session = None
+            
+class SensorlinxDevice:
+    """
+    Represents a device managed by the Sensorlinx system, providing methods to set various device parameters.
+
+    Args:
+        sensorlinx (Sensorlinx): An instance of the Sensorlinx API client used to communicate with the backend.
+        building_id (str): The unique identifier for the building where the device is located.
+        device_id (str): The unique identifier for the device within the building.
+    """
+
+    def __init__(self, sensorlinx: Sensorlinx, building_id: str, device_id: str):
+        """
+        Initialize a SensorlinxDevice.
+
+        Args:
+            sensorlinx (Sensorlinx): The Sensorlinx API client.
+            building_id (str): The building's unique identifier.
+            device_id (str): The device's unique identifier.
+        """
+        self.sensorlinx = sensorlinx
+        self.building_id = building_id
+        self.device_id = device_id
+
+    async def set_permanent_hd(self, value: bool) -> bool:
+        """
+        Set the permanent heating demand parameter for the device.
+
+        Args:
+            value (bool): True to enable permanent heating demand, False to disable.
+
+        Returns:
+            bool: True if the parameter was set successfully, False otherwise.
+        """
+        return await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, permanent_hd=value
+        )
         
-    # async def get_site_list(self) -> dict:
-    #     ''' fetch the available sites
+    # async def get_permanent_hd(self) -> Optional[bool]:
+    #     """
+    #     Get the current permanent heating demand setting for the device.
+
+    #     Returns:
+    #         Optional[bool]: True if permanent heating demand is enabled, False if disabled, None if not set.
+    #     """
+    #     device = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+    #     if device and "permHD" in device:
+    #         return device["permHD"]
+    #     return None
+
+    async def set_permanent_cd(self, value: bool) -> bool:
+        """
+        Set the permanent cooling demand parameter for the device.
+
+        Args:
+            value (bool): True to enable permanent cooling demand, False to disable.
+
+        Returns:
+            bool: True if the parameter was set successfully, False otherwise.
+        """
+        return await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, permanent_cd=value
+        )
+
+    async def set_cold_weather_shutdown(self, value) -> bool:
+        """
+        Set the cold weather shutdown parameter for the device.
+
+        Args:
+            value (Temperature or str): The value to set for cold weather shutdown (Temperature instance or 'off').
+
+        Returns:
+            bool: True if the parameter was set successfully, False otherwise.
+        """
+        return await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, cold_weather_shutdown=value
+        )
+
+    async def set_warm_weather_shutdown(self, value) -> bool:
+        """
+        Set the warm weather shutdown parameter for the device.
+
+        Args:
+            value (Temperature or str): The value to set for warm weather shutdown (Temperature instance or 'off').
+
+        Returns:
+            bool: True if the parameter was set successfully, False otherwise.
+        """
+        return await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, warm_weather_shutdown=value
+        )
         
-    #     Returns: dict: Returns a dictionary of {site_id: site_name}
+    async def set_hvac_mode_priority(self, value: str) -> bool:
+        """
+        Set the HVAC mode priority for the device.
 
-    #     '''
+        Args:
+            value (str): The HVAC mode priority to set (e.g., "heat", "cool" or "auto").
+
+        Returns:
+            bool: True if the parameter was set successfully, False otherwise.
+        """
+        if value not in ["cool", "heat", "auto"]:
+            _LOGGER.error("Invalid HVAC mode priority. Must be 'cool', 'heat' or 'auto'.")
+            return False
         
-    #     if self._session is None:
-    #         if not await self.login():
-    #             return {}
+        return await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, hvac_mode_priority=value
+        )
+        
+    async def get_temperatures(self, title: Optional[str] = None) -> Optional[Dict[str, Dict[str, Optional[Temperature]]]]:
+        """
+        Get the current temperatures for the device.
 
-    #     try:
-    #         async with self._session.get(SITE_LIST_URL, proxy=self.proxy_url, headers=self.headers, timeout=10) as response:
-    #             if response.status != 200:
-    #                 raise Exception("Error fetching job sites page.")
-    #             soup = BeautifulSoup(await response.text(), "html.parser")
-    #     except Exception as err:
-    #         _LOGGER.error("Error fetching site list: %s", err)
-    #         return {}
+        Args:
+            title (Optional[str]): The title of the temperature sensor to retrieve. If None, retrieves all.
 
-    #     sites = {}
-    #     for link in soup.find_all("a", onclick=True):
-    #         onclick = link.get("onclick", "")
-    #         match = re.search(r"ShowSiteDetail\('(\d+)'\)", onclick)
-    #         if match:
-    #             site_id = match.group(1)
-    #             site_name = link.get_text(strip=True)
-    #             sites[site_id] = site_name
+        Returns:
+            Optional[Dict[str, Dict[str, Optional[Temperature]]]]: 
+                A dictionary with sensor titles as keys and dicts with 'actual' and 'target' Temperature instances as values, or None if not found.
+        """
+        device = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+        if not device or "temps" not in device:
+            return None
 
-    #     return sites
+        result = {}
+        for temp_key, temp_info in device["temps"].items():
+            sensor_title = temp_info.get("title")
+            if sensor_title is None:
+                continue  # Skip entries with null titles
+            if title and sensor_title != title:
+                continue
+            actual = temp_info.get("actual")
+            target = temp_info.get("target")
+            result[sensor_title] = {
+                "actual": Temperature(actual, "F") if actual is not None else None,
+                "target": Temperature(target, "F") if target is not None else None
+            }
+        if not result:
+            return None
+        return result
+        
     
-    # async def get_site_sensor_list(self, site_ids: Union[str, List[str], Dict[str, str]] = None) -> Dict[str, Dict[str, str]]:
-    #     '''  Fetch sensors for the selected site using the stored credentials.  
-        
-    #     Args:
-    #         site_ids (Union[str, List[str], Dict[str, str]]) : can be a dictionary in the form {site_id : site_name} or a list of site_id strings or a single site_id string. 
-    #             If not provided all sensors from all sites will be returned.
-                
-    #     Returns: Dict[str, Dict[str, str, str]]: Returns a dictionary of Dict[sensor_id, Dict[description, sensor_type, site_name ]]'''
-
-    #     if self._session is None:
-    #         if not await self.login():
-    #             return {}
-            
-    #     if not site_ids:
-    #         site_ids = await self.get_site_list()
-            
-    #     if isinstance(site_ids, str):
-    #         site_ids = [site_ids]
-    #     elif isinstance(site_ids, list):
-    #         #do nothing
-    #         pass
-    #     elif isinstance(site_ids, dict):
-    #         site_ids = list(site_ids.keys())  # Extract only the keys as a list
-    #     else:
-    #         raise TypeError("Unsupported data type, expected str, list of str, or dict with str keys.")
-                     
-    #     sensors = {}
-
-    #     try:
-    #         sensor_data = await self.get_sensor_data(site_ids)
-
-    #         #if there is no sensor data, return an empty dictionary
-    #         if not sensor_data:
-    #             return {}
-
-    #         #only return a dictionary of sensor_id: description, sensor_type, site_name
-    #         for sensor_id, sensor_info in sensor_data.items():
-    #             sensors[sensor_id] = {
-    #                 "description" : sensor_info["description"], 
-    #                 "sensor_type" : sensor_info["sensor_type"], 
-    #                 "site_name" : sensor_info["site_name"]
-    #             }
-
-    #     except Exception as e:
-    #         _LOGGER.error("Error fetching sensors: %s", e)
-    #         return {}
-        
-    #     return sensors
-
-    # async def get_sensor_data(self, site_ids: Union[str, List[str], Dict[str, str]] = None, sensor_ids: Union[str, List[str]] = []) -> dict:
-    #     ''' Fetch the sensor data
-        
-    #     Args: 
-    #         site_ids (Union[str, List[str], Dict[str, str]]): A single site_id string or a list of site_id strings. If not provided, all sites will be searched.
-    #         sensor_ids (Union[str, List[str]]): A single sensor_id string or a list of sensor_id strings. If not provided, all sensors will be returned from all site(s).
-            
-    #     Returns: dict: Returns a dictionary of sensor data in the form of sensor_id: { description, last_activity, status, temperature, relative_humidity, absolute_humidity, dew_point, wood_pct, battery_voltage, sensor_type, site_name }
-    #     '''
-        
-    #     if self._session is None:
-    #         if not await self.login():
-    #             return {}
-            
-    #     if not site_ids:
-    #         site_ids = await self.get_site_list()
-            
-    #     if isinstance(site_ids, str):
-    #         site_ids = [site_ids]
-    #     elif isinstance(site_ids, list):
-    #         #do nothing
-    #         pass
-    #     elif isinstance(site_ids, dict):
-    #         site_ids = list(site_ids.keys())  # Extract only the keys as a list
-    #     else:
-    #         raise TypeError("Unsupported data type, expected str, list of str, or dict with str keys.")
-
-    #     if isinstance(sensor_ids, str):
-    #         sensor_ids = [sensor_ids]
-
-    #     all_sensors = {}
-    #     for site_id in site_ids:
-    #         sensor_page_url = f"{SENSOR_LIST_URL}?siteNbr={site_id}"
-
-    #         try:
-    #             async with self._session.get(sensor_page_url, proxy=self.proxy_url, headers=self.headers, timeout=10) as response:
-    #                 if response.status != 200:
-    #                     raise Exception(f"Error fetching sensor data for site id '{site_id}'.")
-    #                 soup = BeautifulSoup(await response.text(), "html.parser")
-
-    #                 # Extract site name from the title
-    #                 title_text = soup.find("title").get_text().strip()
-    #                 # Use a regular expression to remove "Sensors for "
-    #                 match = re.search(r"Sensors for\s+(.+)", title_text)
-    #                 if match:
-    #                     site_name = match.group(1)
-
-    #                 #extract individual sensor data
-    #                 for table in soup.select("table.sortable.table"):
-    #                     sensor_type = None
-    #                     table_id = table.get("id", "")
-    #                     if table_id.startswith("sensorType"):
-    #                         sensor_type = f"S-{table_id[len('sensorType'):]}"
-    #                     if not sensor_type:
-    #                         caption = table.find("caption")
-    #                         if caption and caption.text:
-    #                             m = re.search(r"Sensor Type\s*(\d+)", caption.text)
-    #                             if m:
-    #                                 sensor_type = f"S-{m.group(1)}"
-    #                     for row in table.select("tr.sensorTable"):
-    #                         tds = row.find_all("td")
-    #                         if len(tds) >= 10:
-    #                             sid = tds[0].get_text(strip=True)
-    #                             if sensor_ids and sid not in sensor_ids:
-    #                                 continue
-    #                             try:
-    #                                 temperature = float(tds[4].get_text(strip=True))
-    #                             except ValueError:
-    #                                 temperature = None
-
-    #                             desc = tds[1].get_text(strip=True)
-    #                             if desc == "~click to edit~":
-    #                                 desc = "<description not set>"
-
-    #                             all_sensors[sid] = {
-    #                                 "description": desc,
-    #                                 "last_activity": tds[2].get_text(strip=True),
-    #                                 "status": tds[3].get_text(strip=True),
-    #                                 "temperature": temperature,
-    #                                 "relative_humidity": tds[5].get_text(strip=True),
-    #                                 "absolute_humidity": tds[6].get_text(strip=True),
-    #                                 "dew_point": tds[7].get_text(strip=True),
-    #                                 "wood_pct": tds[8].get_text(strip=True),
-    #                                 "battery_voltage": tds[9].get_text(strip=True),
-    #                                 "sensor_type": sensor_type,
-    #                                 "sensor_id": sid,
-    #                                 "site_name": site_name,
-    #                             }
-
-    #         except Exception:
-    #             _LOGGER.error(f"Error fetching/parsing sensor data for site id '{site_id}'.")
-    #             continue
-
-    #     return all_sensors
-
-

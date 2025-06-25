@@ -1,6 +1,6 @@
 import pytest
 import os
-from pysensorlinx import Sensorlinx
+from pysensorlinx import Sensorlinx, Temperature, SensorlinxDevice
 from dotenv import load_dotenv
 import pprint
 
@@ -112,9 +112,308 @@ async def test_live_get_specific_device():
 
     await sensorlinx.login(username, password)
 
-    devices = await sensorlinx.get_devices(building_id, device_id)
-    assert devices is not None, "Failed to fetch devices"
-    assert isinstance(devices, dict), "Devices response is not a dict"
-    assert devices.get("syncCode") == device_id, "Device ID does not match"
+    device = await sensorlinx.get_devices(building_id, device_id)
+    assert device is not None, "Failed to fetch devices"
+    assert isinstance(device, dict), "Devices response is not a dict"
+    assert device.get("syncCode") == device_id, "Device ID does not match"
 
-    await sensorlinx.close()  
+    pprint.pprint(device)
+
+    await sensorlinx.close()
+    
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_enable_permanent_cd():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+    
+    result = await sensorlinxdevice.set_permanent_cd(True)
+
+    assert result is True, "Failed to enable permanent cooling demand"
+    
+    await sensorlinx.close()
+    
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_enable_permanent_hd():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+    
+    result = await sensorlinxdevice.set_permanent_hd(True)
+
+    assert result is True, "Failed to enable permanent heating demand"
+    
+    await sensorlinx.close()
+    
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_set_cold_weather_shutdown_off():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+
+    # Test setting cold weather shutdown to 'off'
+    result = await sensorlinxdevice.set_cold_weather_shutdown("off")
+    assert result is True, "Failed to set cold weather shutdown to 'off'"
+
+    await sensorlinx.close()
+    
+    
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_set_cold_weather_shutdown_5c():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+
+    # Test setting cold weather shutdown to 5C
+    result = await sensorlinxdevice.set_cold_weather_shutdown(Temperature(5, "C"))
+    assert result is True, "Failed to set cold weather shutdown to 5C"
+
+    await sensorlinx.close()
+    
+    
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_set_warm_weather_shutdown_off():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+
+    # Test setting warm weather shutdown to 'off'
+    result = await sensorlinxdevice.set_warm_weather_shutdown("off")
+    assert result is True, "Failed to set warm weather shutdown to 'off'"
+
+    await sensorlinx.close()
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_set_warm_weather_shutdown_30c():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+
+    # Test setting warm weather shutdown to 30C
+    result = await sensorlinxdevice.set_warm_weather_shutdown(Temperature(30, "C"))
+    assert result is True, "Failed to set warm weather shutdown to 30C"
+
+    await sensorlinx.close()
+    
+    
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_set_hvac_mode_priority_heat():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+
+    result = await sensorlinxdevice.set_hvac_mode_priority("heat")
+    assert result is True, "Failed to set HVAC mode priority to 'heat'"
+
+    await sensorlinx.close()
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_set_hvac_mode_priority_cool():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+
+    result = await sensorlinxdevice.set_hvac_mode_priority("cool")
+    assert result is True, "Failed to set HVAC mode priority to 'cool'"
+
+    await sensorlinx.close()
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_set_hvac_mode_priority_auto():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+
+    result = await sensorlinxdevice.set_hvac_mode_priority("auto")
+    assert result is True, "Failed to set HVAC mode priority to 'auto'"
+
+    await sensorlinx.close()
+    
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_get_temperatures():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+
+    temperatures = await sensorlinxdevice.get_temperatures()
+    assert temperatures is not None, "Failed to fetch temperatures"
+    assert isinstance(temperatures, dict), "Temperatures response is not a dict"
+    pprint.pprint(temperatures)
+
+    await sensorlinx.close()
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_get_temperatures_with_title_tank():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    await sensorlinx.login(username, password)
+    sensorlinxdevice = SensorlinxDevice(
+        sensorlinx=sensorlinx,
+        building_id=building_id,
+        device_id=device_id
+    )
+
+    temperatures = await sensorlinxdevice.get_temperatures(title="TANK")
+    assert temperatures is not None, "Failed to fetch temperatures with title 'TANK'"
+    assert isinstance(temperatures, dict), "Temperatures response is not a dict"
+    pprint.pprint(temperatures)
+
+    await sensorlinx.close()
+
+
+
+    
