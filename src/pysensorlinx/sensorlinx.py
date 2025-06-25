@@ -6,19 +6,9 @@ from http.cookies import SimpleCookie
 import asyncio
 import aiohttp
 
+
 _LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
-
-CONF_SITE_NAME = "site_name"       # The name of the site (e.g., "home")
-CONF_SENSOR_IDS = "sensor_ids"     # List of sensor IDs to extract (empty = all)
-CONF_USERNAME = "username"         # Login username
-CONF_PASSWORD = "password"         # Login password
-
-HOST_URL = "https://mobile.sensorlinx.co"
-LOGIN_ENDPOINT = "account/login"
-PROFILE_ENDPOINT = "account/me"
-BUILDINGS_ENDPOINT = "buildings"
-DEVICES_ENDPOINT_TEMPLATE = "buildings/{building_id}/devices"
 
 class LoginError(Exception):
     """Base exception for login failures."""
@@ -31,6 +21,23 @@ class InvalidCredentialsError(LoginError):
 
 class NoTokenError(LoginError):
     """Raised when no token is received after login."""
+    
+class InvalidParameterError(Exception):
+    """Raised when an invalid parameter is provided."""
+
+
+CONF_SITE_NAME = "site_name"       # The name of the site (e.g., "home")
+CONF_SENSOR_IDS = "sensor_ids"     # List of sensor IDs to extract (empty = all)
+CONF_USERNAME = "username"         # Login username
+CONF_PASSWORD = "password"         # Login password
+
+HOST_URL = "https://mobile.sensorlinx.co"
+LOGIN_ENDPOINT = "account/login"
+PROFILE_ENDPOINT = "account/me"
+BUILDINGS_ENDPOINT = "buildings"
+DEVICES_ENDPOINT_TEMPLATE = "buildings/{building_id}/devices"
+
+
 
 class Temperature:
     def __init__(self, value: float, unit: str = "C"):
@@ -140,6 +147,17 @@ class Sensorlinx:
             _LOGGER.exception(f"Exception during login: {e}")
             raise LoginError(f"Exception during login: {e}")
         
+    async def close(self):
+        """Close the aiohttp session if it exists."""
+        if self._session:
+            await self._session.close()
+            self._session = None
+            self._bearer_token = None
+            self._refresh_token = None
+            _LOGGER.debug("Session closed successfully.")
+        else:
+            _LOGGER.debug("No session to close.")
+        
     async def get_profile(self) -> Optional[Dict[str, str]]:
         ''' Fetch the user profile information
         
@@ -243,12 +261,17 @@ class Sensorlinx:
 
 
 
-    async def set_device_parameter(self, building_id: str, device_id: str, 
-                                   permanent_hd: Optional[bool] = None, 
-                                   permanent_cd: Optional[bool] = None, 
-                                   cold_weather_shutdown: Optional[Union[Temperature, str]] = None, 
-                                   warm_weather_shutdown: Optional[Union[Temperature, str]] = None, 
-                                   hvac_mode_priority: Optional[str] = None) -> bool:
+    async def set_device_parameter(
+        self,
+        building_id: str,
+        device_id: str,
+        permanent_hd: Optional[bool] = None,
+        permanent_cd: Optional[bool] = None,
+        cold_weather_shutdown: Optional[Union[Temperature, str]] = None,
+        warm_weather_shutdown: Optional[Union[Temperature, str]] = None,
+        hvac_mode_priority: Optional[str] = None,
+        weather_shutdown_lag_time: Optional[int] = None,
+    ) -> None:
         """
         Set permanent heating and/or cooling demand for a specific device.
 
@@ -260,16 +283,19 @@ class Sensorlinx:
             cold_weather_shutdown (Optional[Temperature or str]): when in cooling mode shuts the heat pump off below this temperature, or 'off' to disable.
             warm_weather_shutdown (Optional[Temperature or str]): when in heating mode shuts the heat pump off above this temperature, or 'off' to disable.
             hvac_mode_priority (Optional[str]): The HVAC mode priority to set (e.g., "cool", "heat", "auto").
-        Returns:
-            bool: True if the operation was successful, False otherwise.
+            weather_shutdown_lag_time (Optional[int]): Lag time for warm/cold weather shutdown.
+
+        Raises:
+            InvalidParameterError: If required parameters are missing or invalid.
+            LoginError: If login fails or session is not established.
+            RuntimeError: If the API call fails for other reasons.
         """
         if not building_id or not device_id:
             _LOGGER.error("Both building_id and device_id must be provided.")
-            return False
+            raise InvalidParameterError("Both building_id and device_id must be provided.")
 
         if self._session is None:
-            if not await self.login():
-                return False
+            await self.login()
 
         url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}/{device_id}"
         payload = {}
@@ -282,11 +308,15 @@ class Sensorlinx:
                 payload["cwsd"] = 32
             elif isinstance(cold_weather_shutdown, Temperature):
                 payload["cwsd"] = round(cold_weather_shutdown.to_fahrenheit())
+            else:
+                raise InvalidParameterError("cold_weather_shutdown must be a Temperature or 'off'")
         if warm_weather_shutdown is not None:
             if isinstance(warm_weather_shutdown, str) and warm_weather_shutdown.lower() == "off":
                 payload["wwsd"] = 32
             elif isinstance(warm_weather_shutdown, Temperature):
                 payload["wwsd"] = round(warm_weather_shutdown.to_fahrenheit())
+            else:
+                raise InvalidParameterError("warm_weather_shutdown must be a Temperature or 'off'")
         if hvac_mode_priority is not None:
             if hvac_mode_priority == "heat":
                 payload["prior"] = 0
@@ -295,11 +325,18 @@ class Sensorlinx:
             elif hvac_mode_priority == "auto":
                 payload["prior"] = 2
             else:
-                return False
+                _LOGGER.error("Invalid HVAC mode priority. Must be 'cool', 'heat', or 'auto'.")
+                raise InvalidParameterError("Invalid HVAC mode priority. Must be 'cool', 'heat', or 'auto'.")
+        if weather_shutdown_lag_time is not None:
+            if isinstance(weather_shutdown_lag_time, int) and weather_shutdown_lag_time >= 0:
+                payload["wwTime"] = weather_shutdown_lag_time
+            else:
+                _LOGGER.error("Invalid value for warm or cold weather shutdown time. Must be a non-negative integer.")
+                raise InvalidParameterError("weather_shutdown_lag_time must be a non-negative integer.")
 
         if not payload:
             _LOGGER.error("At least one optional parameter must be provided")
-            return False
+            raise InvalidParameterError("At least one optional parameter must be provided.")
 
         try:
             async with self._session.patch(
@@ -310,19 +347,14 @@ class Sensorlinx:
                 timeout=10
             ) as resp:
                 if resp.status != 200:
-                    _LOGGER.error(f"Failed to set permanent demand with status {resp.status}")
-                    return False
-                _LOGGER.debug(f"Response from setting permanent demand: {await resp.json()}")
-                return True
+                    _LOGGER.error(f"Failed to set device parameter(s) with status {resp.status}")
+                    raise RuntimeError(f"Failed to set device parameter(s) with status {resp.status}")
+                _LOGGER.debug(f"Response from setting device parameter(s): {await resp.json()}")
         except Exception as e:
-            _LOGGER.error(f"Exception setting permanent demand: {e}")
-            return False
+            _LOGGER.error(f"Exception setting device parameter(s): {e}")
+            raise RuntimeError(f"Exception setting device parameter(s): {e}")
 
-    async def close(self):
-        if self._session:
-            await self._session.close()
-            self._session = None
-            
+           
 class SensorlinxDevice:
     """
     Represents a device managed by the Sensorlinx system, providing methods to set various device parameters.
@@ -353,83 +385,112 @@ class SensorlinxDevice:
         # 
         #################################################################################################################################   
     '''
-    async def set_hvac_mode_priority(self, value: str) -> bool:
+    async def set_hvac_mode_priority(self, value: str) -> None:
         """
         Set the HVAC mode priority for the device.
 
         Args:
             value (str): The HVAC mode priority to set (e.g., "heat", "cool" or "auto").
 
-        Returns:
-            bool: True if the parameter was set successfully, False otherwise.
+        Raises:
+            InvalidParameterError: If value is not one of "cool", "heat" or "auto".
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
         """
         if value not in ["cool", "heat", "auto"]:
             _LOGGER.error("Invalid HVAC mode priority. Must be 'cool', 'heat' or 'auto'.")
-            return False
+            raise InvalidParameterError("Invalid HVAC mode priority. Must be 'cool', 'heat' or 'auto'.")
         
-        return await self.sensorlinx.set_device_parameter(
+        await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, hvac_mode_priority=value
         )
+        
+    
+    async def set_weather_shutdown_lag_time(self, value: int) -> None:
+        """
+        Sets the lag time (in hours) for Warm Weather Shutdown (WWSD) or Cold Weather Shutdown (CWSD).
 
-    async def set_permanent_hd(self, value: bool) -> bool:
+        Args:
+            value (int): The lag time in hours to wait before entering WWSD or CWSD after the temperature threshold is met.
+
+        Raises:
+            InvalidParameterError: If value is not a non-negative integer.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        if not isinstance(value, int) or value < 0:
+            _LOGGER.error("Invalid value for warm or cold weather shutdown time. Must be a non-negative integer.")
+            raise InvalidParameterError("Value must be a non-negative integer.")
+
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, weather_shutdown_lag_time=value
+        )
+
+
+    async def set_permanent_hd(self, value: bool) -> None:
         """
         Set the permanent heating demand parameter for the device.
 
         Args:
             value (bool): True to enable permanent heating demand, False to disable.
 
-        Returns:
-            bool: True if the parameter was set successfully, False otherwise.
+        Raises:
+            InvalidParameterError: If the value is invalid.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
         """
-        return await self.sensorlinx.set_device_parameter(
+        await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, permanent_hd=value
         )
-        
-    async def set_permanent_cd(self, value: bool) -> bool:
+
+    async def set_permanent_cd(self, value: bool) -> None:
         """
         Set the permanent cooling demand parameter for the device.
 
         Args:
             value (bool): True to enable permanent cooling demand, False to disable.
 
-        Returns:
-            bool: True if the parameter was set successfully, False otherwise.
+        Raises:
+            InvalidParameterError: If the value is invalid.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
         """
-        return await self.sensorlinx.set_device_parameter(
+        await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, permanent_cd=value
         )
 
-    async def set_cold_weather_shutdown(self, value) -> bool:
+    async def set_cold_weather_shutdown(self, value) -> None:
         """
         Set the cold weather shutdown parameter for the device.
 
         Args:
             value (Temperature or str): The value to set for cold weather shutdown (Temperature instance or 'off').
 
-        Returns:
-            bool: True if the parameter was set successfully, False otherwise.
+        Raises:
+            InvalidParameterError: If the value is invalid.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
         """
-        return await self.sensorlinx.set_device_parameter(
+        await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, cold_weather_shutdown=value
         )
 
-    async def set_warm_weather_shutdown(self, value) -> bool:
+    async def set_warm_weather_shutdown(self, value) -> None:
         """
         Set the warm weather shutdown parameter for the device.
 
         Args:
             value (Temperature or str): The value to set for warm weather shutdown (Temperature instance or 'off').
 
-        Returns:
-            bool: True if the parameter was set successfully, False otherwise.
+        Raises:
+            InvalidParameterError: If the value is invalid.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
         """
-        return await self.sensorlinx.set_device_parameter(
+        await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, warm_weather_shutdown=value
         )
-        
 
-        
-        
     '''
         #################################################################################################################################
                                                 METHODS TO GET PARAMETERS
@@ -441,7 +502,7 @@ class SensorlinxDevice:
         self, 
         temp_name: Optional[str] = None, 
         device: Optional[Dict] = None
-    ) -> Optional[Dict[str, Dict[str, Optional[Temperature]]]]:
+    ) -> Dict[str, Dict[str, Optional[Temperature]]]:
         """
         Get the current temperatures for the device.
 
@@ -450,13 +511,16 @@ class SensorlinxDevice:
             device (Optional[Dict]): If provided, use this device dict instead of fetching from API, this should be the result of get_devices().
 
         Returns:
-            Optional[Dict[str, Dict[str, Optional[Temperature]]]]: 
-                A dictionary with sensor titles as keys and dicts with 'actual' and 'target' Temperature instances as values, or None if not found.
+            Dict[str, Dict[str, Optional[Temperature]]]: 
+                A dictionary with sensor titles as keys and dicts with 'actual' and 'target' Temperature instances as values.
+
+        Raises:
+            RuntimeError: If the device or temperature data is not found.
         """
         if device is None:
             device = await self.sensorlinx.get_devices(self.building_id, self.device_id)
         if not device or "temps" not in device:
-            return None
+            raise RuntimeError("Device or temperature data not found.")
 
         result = {}
         for temp_key, temp_info in device["temps"].items():
@@ -472,7 +536,7 @@ class SensorlinxDevice:
                 "target": Temperature(target, "F") if target is not None else None
             }
         if not result:
-            return None
+            raise RuntimeError("No matching temperature sensors found.")
         return result
         
     
