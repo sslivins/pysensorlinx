@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 from http.cookies import SimpleCookie
 import asyncio
 import aiohttp
+import datetime
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -497,33 +498,128 @@ class SensorlinxDevice:
         #################################################################################################################################
 
     '''
+    
+    async def _get_device_info_value(self, key: str, device_info: Optional[Dict] = None, *, parent: Optional[str] = None) -> str:
+        """
+        Helper to get a value from device_info by key, optionally from a parent dict.
+
+        Args:
+            key (str): The key to retrieve.
+            device_info (Optional[Dict]): The device info dict.
+            parent (Optional[str]): If provided, look for the key inside this parent dict.
+
+        Returns:
+            str: The value found.
+
+        Raises:
+            RuntimeError: If the device info or key is not found.
+        """
+        if device_info is None:
+            device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+        if not device_info:
+            raise RuntimeError("Device info not found.")
+        if parent:
+            parent_dict = device_info.get(parent)
+            if not (parent_dict and isinstance(parent_dict, dict)):
+                raise RuntimeError(f"{parent.capitalize()} info not found.")
+            value = parent_dict.get(key)
+        else:
+            value = device_info.get(key)
+        if value is None:
+            raise RuntimeError(f"{key.replace('_', ' ').capitalize()} not found.")
+        return value    
+    
+    #################################################################################################################################
+    #                                               General Device Get Methods
+    #################################################################################################################################
+
+    async def get_firmware_version(self, device_info: Optional[Dict] = None) -> str:
+        """
+        Get the firmware version of the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            str: The firmware version string.
+
+        Raises:
+            RuntimeError: If the device or firmware version is not found.
+        """
+        return await self._get_device_info_value("firmVer", device_info)
+
+    async def get_sync_code(self, device_info: Optional[Dict] = None) -> str:
+        """
+        Get the sync code of the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            str: The sync code string.
+
+        Raises:
+            RuntimeError: If the device or sync code is not found.
+        """
+        return await self._get_device_info_value("syncCode", device_info)
+
+    async def get_device_pin(self, device_info: Optional[Dict] = None) -> str:
+        """
+        Get the device PIN.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            str: The device PIN string.
+
+        Raises:
+            RuntimeError: If the device or PIN is not found.
+        """
+        return await self._get_device_info_value("pin", device_info, parent="production")
+    
+    async def get_device_type(self, device_info: Optional[Dict] = None) -> str:
+        """
+        Get the device type.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            str: The device type string.
+
+        Raises:
+            RuntimeError: If the device or device type is not found.
+        """
+        return await self._get_device_info_value("deviceType", device_info)
 
     async def get_temperatures(
         self, 
         temp_name: Optional[str] = None, 
-        device: Optional[Dict] = None
-    ) -> Dict[str, Dict[str, Optional[Temperature]]]:
+        device_info: Optional[Dict] = None
+    ) -> Union[Dict[str, Dict[str, Optional[Temperature]]], Dict[str, Optional[Temperature]]]:
         """
         Get the current temperatures for the device.
 
         Args:
             temp_name (Optional[str]): The name of the temperature sensor to retrieve. If None, retrieves all.
-            device (Optional[Dict]): If provided, use this device dict instead of fetching from API, this should be the result of get_devices().
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
             Dict[str, Dict[str, Optional[Temperature]]]: 
-                A dictionary with sensor titles as keys and dicts with 'actual' and 'target' Temperature instances as values.
+                A dictionary with sensor titles as keys and dicts with 'actual' and 'target' Temperature instances as values,
+                or a single dict for the requested sensor if temp_name is provided.
 
         Raises:
             RuntimeError: If the device or temperature data is not found.
         """
-        if device is None:
-            device = await self.sensorlinx.get_devices(self.building_id, self.device_id)
-        if not device or "temps" not in device:
+        if device_info is None:
+            device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+        if not device_info or "temps" not in device_info:
             raise RuntimeError("Device or temperature data not found.")
 
         result = {}
-        for temp_key, temp_info in device["temps"].items():
+        for temp_key, temp_info in device_info["temps"].items():
             sensor_title = temp_info.get("title")
             if sensor_title is None:
                 continue  # Skip entries with null titles
@@ -535,8 +631,53 @@ class SensorlinxDevice:
                 "actual": Temperature(actual, "F") if actual is not None else None,
                 "target": Temperature(target, "F") if target is not None else None
             }
+        if temp_name:
+            if temp_name not in result:
+                raise RuntimeError(f"Temperature sensor '{temp_name}' not found.")
+            return result[temp_name]
         if not result:
             raise RuntimeError("No matching temperature sensors found.")
+        return result
+    
+    async def get_runtimes(self, device_info: Optional[Dict] = None) -> Dict[str, Union[list, str]]:
+        """
+        Retrieve runtimes for heat pump stages and backup heater.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            Dict[str, Union[list, str]]: Dictionary with 'stages' as a list of timedelta objects and 'backup' as a string.
+
+        Raises:
+            RuntimeError: If required runtime data is not found.
+        """
+        if device_info is None:
+            device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+        if not device_info:
+            raise RuntimeError("Device info not found.")
+
+        stg_run = device_info.get("stgRun")
+        num_stg = device_info.get("numStg")
+        bk_run = device_info.get("bkRun")
+
+        if stg_run is None or num_stg is None:
+            raise RuntimeError("Stage runtime data not found.")
+
+        def parse_runtime(runtime_str):
+            # Expects format "H:MM"
+            hours, minutes = map(int, runtime_str.split(":"))
+            return datetime.timedelta(hours=hours, minutes=minutes)
+
+        stages = []
+        for i in range(num_stg):
+            value = stg_run[i] if i < len(stg_run) else "0:00"
+            stages.append(parse_runtime(value))
+
+        result = {"stages": stages}
+        if bk_run is not None:
+            result["backup"] = parse_runtime(bk_run)  # You could also parse this if it's in the same format
+
         return result
         
     
