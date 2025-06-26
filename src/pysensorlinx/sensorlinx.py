@@ -260,8 +260,6 @@ class Sensorlinx:
             _LOGGER.error(f"Exception fetching device(s): {e}")
             return None
 
-
-
     async def set_device_parameter(
         self,
         building_id: str,
@@ -272,6 +270,13 @@ class Sensorlinx:
         warm_weather_shutdown: Optional[Union[Temperature, str]] = None,
         hvac_mode_priority: Optional[str] = None,
         weather_shutdown_lag_time: Optional[int] = None,
+        wide_priority_differential: Optional[bool] = None,
+        number_of_stages: Optional[int] = None,
+        two_stage_heat_pump: Optional[bool] = None, 
+        stage_on_lag_time: Optional[int] = None,
+        stage_off_lag_time: Optional[int] = None,
+        rotate_cycles: Optional[Union[int, str]] = None,
+        rotate_time: Optional[Union[int, str]] = None
     ) -> None:
         """
         Set permanent heating and/or cooling demand for a specific device.
@@ -285,6 +290,13 @@ class Sensorlinx:
             warm_weather_shutdown (Optional[Temperature or str]): when in heating mode shuts the heat pump off above this temperature, or 'off' to disable.
             hvac_mode_priority (Optional[str]): The HVAC mode priority to set (e.g., "cool", "heat", "auto").
             weather_shutdown_lag_time (Optional[int]): Lag time for warm/cold weather shutdown.
+            wide_priority_differential (Optional[bool]): If True, enables wide priority differential for the device.
+            number_of_stages (Optional[int]): Number of heat pump stages attached to the control (1-4).
+            two_stage_heat_pump (Optional[bool]): If True, enables two-stage heat pump mode.
+            stage_on_lag_time (Optional[int]): Lag time in minutes between heat pump stages (1-240).
+            stage_off_lag_time (Optional[int]): Lag time in seconds between heat pump stages (0-240).
+            rotate_cycles (Optional[Union[int, str]]): Number of cycles to rotate heat pumps, or 'off' to disable.
+            rotate_time (Optional[Union[int, str]]): Time of rotation between heat pumps in hours, or 'off' to disable.
 
         Raises:
             InvalidParameterError: If required parameters are missing or invalid.
@@ -334,6 +346,55 @@ class Sensorlinx:
             else:
                 _LOGGER.error("Invalid value for warm or cold weather shutdown time. Must be a non-negative integer.")
                 raise InvalidParameterError("weather_shutdown_lag_time must be a non-negative integer.")
+
+        if wide_priority_differential is not None:
+            payload["wPDif"] = wide_priority_differential
+            
+        if number_of_stages is not None:
+            if isinstance(number_of_stages, int) and 1 <= number_of_stages <= 4:
+                payload["numStg"] = number_of_stages
+            else:
+                _LOGGER.error("Number of stages must be an integer between 1 and 4.")
+                raise InvalidParameterError("number_of_stages must be an integer between 1 and 4.")
+        
+        if two_stage_heat_pump is not None:
+            if isinstance(two_stage_heat_pump, bool):
+                payload["twoS"] = two_stage_heat_pump
+            else:
+                _LOGGER.error("two_stage_heat_pump must be a boolean value.")
+                raise InvalidParameterError("two_stage_heat_pump must be a boolean value.")
+            
+        if stage_on_lag_time is not None:
+            if isinstance(stage_on_lag_time, int) and 1 <= stage_on_lag_time <= 240:
+                payload["lagT"] = stage_on_lag_time
+            else:
+                _LOGGER.error("Stage ON Lagtime must be an integer between 1 and 240 minutes.")
+                raise InvalidParameterError("stage_on_lag_time must be an integer between 1 and 240 minutes.")
+            
+        if stage_off_lag_time is not None:
+            if isinstance(stage_off_lag_time, int) and 0 <= stage_off_lag_time <= 240:
+                payload["lagOff"] = stage_off_lag_time
+            else:
+                _LOGGER.error("Stage OFF Lagtime must be an integer between 0 and 240 seconds.")
+                raise InvalidParameterError("stage_off_lag_time must be an integer between 0 and 240 seconds.")
+            
+        if rotate_cycles is not None:
+            if isinstance(rotate_cycles, str) and rotate_cycles.lower() == "off":
+                payload["rotCy"] = 0
+            elif isinstance(rotate_cycles, int) and 1 <= rotate_cycles <= 240:
+                payload["rotCy"] = rotate_cycles
+            else:
+                _LOGGER.error("Rotate cycles must be an integer between 1 and 240 or 'off'.")
+                raise InvalidParameterError("rotate_cycles must be an integer between 1 and 240 or 'off'.")
+            
+        if rotate_time is not None:
+            if isinstance(rotate_time, str) and rotate_time.lower() == "off":
+                payload["rotTi"] = 0
+            elif isinstance(rotate_time, int) and 1 <= rotate_time <= 240:
+                payload["rotTi"] = rotate_time
+            else:
+                _LOGGER.error("Rotate time must be an integer between 1 and 240 or 'off'.")
+                raise InvalidParameterError("rotate_time must be an integer between 1 and 240 or 'off'.")
 
         if not payload:
             _LOGGER.error("At least one optional parameter must be provided")
@@ -406,7 +467,6 @@ class SensorlinxDevice:
             self.building_id, self.device_id, hvac_mode_priority=value
         )
         
-    
     async def set_weather_shutdown_lag_time(self, value: int) -> None:
         """
         Sets the lag time (in hours) for Warm Weather Shutdown (WWSD) or Cold Weather Shutdown (CWSD).
@@ -426,14 +486,37 @@ class SensorlinxDevice:
         await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, weather_shutdown_lag_time=value
         )
+        
+    async def set_wide_priority_differential(self, value: bool) -> None:
+        """
+        Enable or disable Wide Priority Differential for the device.
+
+        When enabled, the tank target will exceed the setpoint by the configured differential before switching between heat and cool demands if both are present. When disabled, the tank target switches as soon as the setpoint is satisfied. This should not be used for single tank systems.
+
+        Args:
+            value (bool): True to enable, False to disable.
+
+        Raises:
+            InvalidParameterError: If the value is invalid.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, wide_priority_differential=value
+        )
 
 
     async def set_permanent_hd(self, value: bool) -> None:
         """
         Set the permanent heating demand parameter for the device.
 
+        This setting indicates that the ECO-0600 is in a permanent heat demand state. 
+        It can be used instead of attaching a thermostat. 
+
+        When enabled, the tank will always maintain the target temperature, even if there is no external demand.
+
         Args:
-            value (bool): True to enable permanent heating demand, False to disable.
+            value (bool): True to enable permanent heating demand (ON), False to disable (OFF).
 
         Raises:
             InvalidParameterError: If the value is invalid.
@@ -448,8 +531,13 @@ class SensorlinxDevice:
         """
         Set the permanent cooling demand parameter for the device.
 
+        This setting indicates that the ECO-0600 is in a permanent cooling demand state.
+        It can be used instead of attaching a thermostat.
+
+        When enabled, the tank will always maintain the target temperature for cooling, even if there is no external demand.
+
         Args:
-            value (bool): True to enable permanent cooling demand, False to disable.
+            value (bool): True to enable permanent cooling demand (ON), False to disable (OFF).
 
         Raises:
             InvalidParameterError: If the value is invalid.
@@ -459,6 +547,167 @@ class SensorlinxDevice:
         await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, permanent_cd=value
         )
+
+    #################################################################################################################################
+    #                                               Heat Pump Setup Methods
+    #################################################################################################################################
+
+    async def set_number_of_stages(self, value: int) -> None:
+        """
+        Set the number of heat pump stages attached to the control.
+
+        This setting allows you to select the number of heat pump stages that are attached to the control.
+        If Backup is being used, you can only have a maximum of 3 stages. If Backup is being used with 4 stages of heat pumps,
+        then Pump Output 1 will be used for the Backup. Allowed values: 1 to 4. Default: 1.
+
+        Args:
+            value (int): The number of stages (must be an integer between 1 and 4).
+
+        Raises:
+            InvalidParameterError: If the value is not between 1 and 4.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        if not isinstance(value, int) or not (1 <= value <= 4):
+            _LOGGER.error("Number of stages must be an integer between 1 and 4.")
+            raise InvalidParameterError("Number of stages must be an integer between 1 and 4.")
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, number_of_stages=value
+        )
+        
+    async def set_two_stage_heat_pump(self, value: bool) -> None:
+        """
+        Set the two-stage heat pump parameter for the device.
+
+        This setting will appear when the Number of Stages is set to an even value.
+        This setting can be utilized when using dual stage heat pumps or pumps with 2 compressors per unit.
+
+        Args:
+            value (bool): True to enable two-stage heat pump mode, False to disable.
+
+        Raises:
+            InvalidParameterError: If the value is invalid.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, two_stage_heat_pump=value
+        )
+        
+    async def set_stage_on_lag_time(self, value: int) -> None:
+        """
+        Set the Stage ON Lagtime for the device.
+
+        When the heat pump is set for more than 1 stage, this setting specifies the minimum lagtime (in minutes) between heat pump stages. 
+        This is a time delay between stages: even if the differential has been exceeded, this time must elapse before the next stage can 
+        turn on. Allowed values: 1-240 minutes.
+
+        Args:
+            value (int): The lag time in minutes to wait before activating the next stage (must be between 1 and 240).
+
+        Raises:
+            InvalidParameterError: If the value is not between 1 and 240.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        if not isinstance(value, int) or not (1 <= value <= 240):
+            _LOGGER.error("Stage ON Lagtime must be an integer between 1 and 240 minutes.")
+            raise InvalidParameterError("Stage ON Lagtime must be an integer between 1 and 240 minutes.")
+        
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, stage_on_lag_time=value
+        )
+        
+    async def set_stage_off_lag_time(self, value: int) -> None:
+        """
+        Set the Stage OFF Lagtime for the device.
+
+        When the heat pump is set for more than 1 stage, this setting specifies the minimum OFF lagtime (in seconds) between heat pump stages.
+        Allowed values: 0-240 seconds.
+
+        Args:
+            value (int): The lag time in seconds to wait before deactivating the next stage (must be between 0 and 240).
+
+        Raises:
+            InvalidParameterError: If the value is not between 0 and 240.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        if not isinstance(value, int) or not (0 <= value <= 240):
+            _LOGGER.error("Stage OFF Lagtime must be an integer between 0 and 240 seconds.")
+            raise InvalidParameterError("Stage OFF Lagtime must be an integer between 0 and 240 seconds.")
+
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, stage_off_lag_time=value
+        )
+        
+    async def set_rotate_cycles(self, value: Union[int, str]) -> None:
+        """
+        Set the number of cycles at which to rotate the heat pumps.
+
+        One cycle is defined as the heat pump turning on and then off.
+        Allowed values: "off" (to disable) or an integer between 1 and 240.
+
+        Args:
+            value (Union[int, str]): Number of cycles (1-240) or "off" to disable.
+
+        Raises:
+            InvalidParameterError: If the value is not "off" or an integer in range.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        if isinstance(value, str):
+            if value.lower() != "off":
+                _LOGGER.error("Rotate cycles must be an integer between 1 and 240 or 'off'.")
+                raise InvalidParameterError("Rotate cycles must be an integer between 1 and 240 or 'off'.")
+            cycles = 0
+        elif isinstance(value, int):
+            if not (1 <= value <= 240):
+                _LOGGER.error("Rotate cycles must be an integer between 1 and 240.")
+                raise InvalidParameterError("Rotate cycles must be an integer between 1 and 240.")
+            cycles = value
+        else:
+            _LOGGER.error("Rotate cycles must be an integer between 1 and 240 or 'off'.")
+            raise InvalidParameterError("Rotate cycles must be an integer between 1 and 240 or 'off'.")
+
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, rotate_cycles=cycles
+        )
+        
+    async def set_rotate_time(self, value: Union[int, str]) -> None:
+        """
+        Set the rotate time between heat pumps.
+
+        This setting determines the time of rotation between heat pumps, in hours of run time.
+        The heat pumps will rotate when the first heat pump exceeds the second by the rotate time.
+        Allowed values: "off" (to disable) or an integer between 1 and 240.
+
+        Args:
+            value (Union[int, str]): Number of hours (1-240) or "off" to disable.
+
+        Raises:
+            InvalidParameterError: If the value is not "off" or an integer in range.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        if isinstance(value, str):
+            if value.lower() != "off":
+                _LOGGER.error("Rotate time must be an integer between 1 and 240 or 'off'.")
+                raise InvalidParameterError("Rotate time must be an integer between 1 and 240 or 'off'.")
+            rotate_time = 0
+        elif isinstance(value, int):
+            if not (1 <= value <= 240):
+                _LOGGER.error("Rotate time must be an integer between 1 and 240.")
+                raise InvalidParameterError("Rotate time must be an integer between 1 and 240.")
+            rotate_time = value
+        else:
+            _LOGGER.error("Rotate time must be an integer between 1 and 240 or 'off'.")
+            raise InvalidParameterError("Rotate time must be an integer between 1 and 240 or 'off'.")
+
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, rotate_time=rotate_time
+        )
+
 
     async def set_cold_weather_shutdown(self, value) -> None:
         """
