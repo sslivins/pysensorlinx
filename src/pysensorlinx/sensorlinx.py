@@ -276,7 +276,20 @@ class Sensorlinx:
         stage_on_lag_time: Optional[int] = None,
         stage_off_lag_time: Optional[int] = None,
         rotate_cycles: Optional[Union[int, str]] = None,
-        rotate_time: Optional[Union[int, str]] = None
+        rotate_time: Optional[Union[int, str]] = None,
+        off_staging: Optional[bool] = None,
+        heat_cool_switch_delay: Optional[int] = None,
+        hot_tank_outdoor_reset: Optional[Union[int, str]] = None,
+        heat_differential: Optional[Temperature] = None,
+        hot_min_tank_temp: Optional[Temperature] = None,
+        hot_max_tank_temp: Optional[Temperature] = None,
+        cold_tank_outdoor_reset: Optional[Union[int, str]] = None,
+        cold_differential: Optional[Temperature] = None,
+        cold_min_tank_temp: Optional[Temperature] = None,
+        cold_max_tank_temp: Optional[Temperature] = None,
+        backup_time: Optional[int] = None,
+        backup_temp: Optional[Temperature] = None,
+        backup_differential: Optional[Temperature] = None
     ) -> None:
         """
         Set permanent heating and/or cooling demand for a specific device.
@@ -286,8 +299,6 @@ class Sensorlinx:
             device_id (str): The ID of the device (required).
             permanent_hd (Optional[bool]): If True, always maintain buffer tank target temperature (heating).
             permanent_cd (Optional[bool]): If True, always maintain buffer tank target temperature (cooling).
-            cold_weather_shutdown (Optional[Temperature or str]): when in cooling mode shuts the heat pump off below this temperature, or 'off' to disable.
-            warm_weather_shutdown (Optional[Temperature or str]): when in heating mode shuts the heat pump off above this temperature, or 'off' to disable.
             hvac_mode_priority (Optional[str]): The HVAC mode priority to set (e.g., "cool", "heat", "auto").
             weather_shutdown_lag_time (Optional[int]): Lag time for warm/cold weather shutdown.
             wide_priority_differential (Optional[bool]): If True, enables wide priority differential for the device.
@@ -297,6 +308,21 @@ class Sensorlinx:
             stage_off_lag_time (Optional[int]): Lag time in seconds between heat pump stages (0-240).
             rotate_cycles (Optional[Union[int, str]]): Number of cycles to rotate heat pumps, or 'off' to disable.
             rotate_time (Optional[Union[int, str]]): Time of rotation between heat pumps in hours, or 'off' to disable.
+            off_staging (Optional[bool]): If True, enables Off Staging feature for the device.
+            heat_cool_switch_delay (Optional[int]): Delay in seconds between switching from heat to cool (30-600).
+            warm_weather_shutdown (Optional[Temperature or str]): when in heating mode shuts the heat pump off above this temperature, or 'off' to disable.
+            hot_tank_outdoor_reset (Optional[Union[int, str]]): Design temperature for outdoor reset in °F (-40 to 127) or 'off' to disable.
+            heat_differential (Optional[Temperature]): The heat differential to set for the device.
+            hot_min_tank_temp (Optional[Temperature]): The minimum tank temperature for the hot tank (35°F to 200°F)
+            hot_max_tank_temp (Optional[Temperature]): The maximum tank temperature for the hot tank (35°F to 200°F)
+            cold_weather_shutdown (Optional[Temperature or str]): when in cooling mode shuts the heat pump off below this temperature, (32F to 119F) or 'off' to disable.
+            cold_tank_outdoor_reset (Optional[Union[int, str]]): Design temperature for outdoor reset in (0F to 119F) or 'off' to disable.
+            cold_differential (Optional[Temperature]): The cold differential to set for the device (2°F to 100°F)
+            cold_min_tank_temp (Optional[Temperature]): The minimum tank temperature for the cold tank (35°F to 200°F)
+            cold_max_tank_temp (Optional[Temperature]): The maximum tank temperature for the cold tank (35°F to 200°F)
+            backup_time (Optional[int]): The time in minutes to wait before switching to backup mode.
+            backup_temp (Optional[Temperature]): The outdoor temperature at which the backup mode is activated (2F to 100F) or 'off' to disable.
+            backup_differential (Optional[Temperature]): The backup differential temperature to set for the device or 'off' to disable.
 
         Raises:
             InvalidParameterError: If required parameters are missing or invalid.
@@ -312,24 +338,13 @@ class Sensorlinx:
 
         url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}/{device_id}"
         payload = {}
+        
         if permanent_hd is not None:
             payload["permHD"] = permanent_hd
+            
         if permanent_cd is not None:
             payload["permCD"] = permanent_cd
-        if cold_weather_shutdown is not None:
-            if isinstance(cold_weather_shutdown, str) and cold_weather_shutdown.lower() == "off":
-                payload["cwsd"] = 32
-            elif isinstance(cold_weather_shutdown, Temperature):
-                payload["cwsd"] = round(cold_weather_shutdown.to_fahrenheit())
-            else:
-                raise InvalidParameterError("cold_weather_shutdown must be a Temperature or 'off'")
-        if warm_weather_shutdown is not None:
-            if isinstance(warm_weather_shutdown, str) and warm_weather_shutdown.lower() == "off":
-                payload["wwsd"] = 32
-            elif isinstance(warm_weather_shutdown, Temperature):
-                payload["wwsd"] = round(warm_weather_shutdown.to_fahrenheit())
-            else:
-                raise InvalidParameterError("warm_weather_shutdown must be a Temperature or 'off'")
+            
         if hvac_mode_priority is not None:
             if hvac_mode_priority == "heat":
                 payload["prior"] = 0
@@ -395,7 +410,177 @@ class Sensorlinx:
             else:
                 _LOGGER.error("Rotate time must be an integer between 1 and 240 or 'off'.")
                 raise InvalidParameterError("rotate_time must be an integer between 1 and 240 or 'off'.")
+            
+        if off_staging is not None:
+            if isinstance(off_staging, bool):
+                payload["hpStg"] = off_staging
+            else:
+                _LOGGER.error("Off staging must be a boolean value.")
+                raise InvalidParameterError("off_staging must be a boolean value.")
+            
+        if heat_cool_switch_delay is not None:
+            if isinstance(heat_cool_switch_delay, int) and 30 <= heat_cool_switch_delay <= 600:
+                payload["hpSw"] = heat_cool_switch_delay
+            else:
+                _LOGGER.error("Heat/Cool Switch Delay must be an integer between 30 and 600 seconds.")
+                raise InvalidParameterError("heat_cool_switch_delay must be an integer between 30 and 600 seconds.")
+            
+        ###############################################################################################    
+        # Hot Tank parameters
+        ###############################################################################################     
+        
+        if warm_weather_shutdown is not None:
+            if isinstance(warm_weather_shutdown, str) and warm_weather_shutdown.lower() == "off":
+                payload["wwsd"] = 32
+            elif isinstance(warm_weather_shutdown, Temperature):
+                payload["wwsd"] = round(warm_weather_shutdown.to_fahrenheit())
+            else:
+                raise InvalidParameterError("warm_weather_shutdown must be a Temperature or 'off'")               
+            
+        if hot_tank_outdoor_reset is not None:
+            if isinstance(hot_tank_outdoor_reset, str) and hot_tank_outdoor_reset.lower() == "off":
+                payload["dot"] = -41
+            elif isinstance(hot_tank_outdoor_reset, int) and -40 <= hot_tank_outdoor_reset <= 127:
+                payload["dot"] = hot_tank_outdoor_reset
+            else:
+                _LOGGER.error("Outdoor reset must be an integer between -40 and 127 or 'off'.")
+                raise InvalidParameterError("hot_tank_outdoor_reset must be an integer between -40 and 127 or 'off'.")
+            
+        if heat_differential is not None:
+            if isinstance(heat_differential, Temperature):
+                payload["htDif"] = round(heat_differential.to_fahrenheit())
+            else:
+                _LOGGER.error("heat_differential must be a Temperature instance.")
+                raise InvalidParameterError("heat_differential must be a Temperature instance.")
+            
+        if hot_min_tank_temp is not None:
+            if isinstance(hot_min_tank_temp, Temperature):
+                temp_f = hot_min_tank_temp.to_fahrenheit()
+                if not (35 <= temp_f <= 200):
+                    _LOGGER.error("hot_min_tank_temp must be between 35°F and 200°F.")
+                    raise InvalidParameterError("hot_min_tank_temp must be between 35°F and 200°F.")
+                payload["dbt"] = round(temp_f)
+            else:
+                _LOGGER.error("hot_min_tank_temp must be a Temperature instance.")
+                raise InvalidParameterError("hot_min_tank_temp must be a Temperature instance.")
+            
+        if hot_max_tank_temp is not None:
+            if isinstance(hot_max_tank_temp, Temperature):
+                temp_f = hot_max_tank_temp.to_fahrenheit()
+                if not (35 <= temp_f <= 200):
+                    _LOGGER.error("hot_max_tank_temp must be between 35°F and 200°F.")
+                    raise InvalidParameterError("hot_max_tank_temp must be between 35°F and 200°F.")
+                payload["mbt"] = round(temp_f)
+            else:
+                _LOGGER.error("hot_max_tank_temp must be a Temperature instance.")
+                raise InvalidParameterError("hot_max_tank_temp must be a Temperature instance.")
+        
+        ###############################################################################################    
+        # Cold Tank parameters
+        ###############################################################################################
+            
+        if cold_weather_shutdown is not None:
+            if isinstance(cold_weather_shutdown, str) and cold_weather_shutdown.lower() == "off":
+                payload["cwsd"] = 32
+            elif isinstance(cold_weather_shutdown, Temperature):
+                payload["cwsd"] = round(cold_weather_shutdown.to_fahrenheit())
+            else:
+                raise InvalidParameterError("cold_weather_shutdown must be a Temperature or 'off'")            
+            
+        if cold_tank_outdoor_reset is not None:
+            if isinstance(cold_tank_outdoor_reset, str) and cold_tank_outdoor_reset.lower() == "off":
+                payload["cdot"] = -41
+            elif isinstance(cold_tank_outdoor_reset, int) and 0 <= cold_tank_outdoor_reset <= 119:
+                payload["cdot"] = cold_tank_outdoor_reset
+            else:
+                _LOGGER.error("cold_tank_outdoor_reset must be an integer between 0 and 119 or 'off'.")
+                raise InvalidParameterError("cold_tank_outdoor_reset must be an integer between 0 and 119 or 'off'.")
+            
+        if cold_differential is not None:
+            if isinstance(cold_differential, Temperature):
+                temp_f = cold_differential.to_fahrenheit()
+                if not (2 <= temp_f <= 100):
+                    _LOGGER.error("cold_differential must be between 2°F and 100°F.")
+                    raise InvalidParameterError("cold_differential must be between 2°F and 100°F.")
+                payload["clDif"] = round(temp_f)
+            else:
+                _LOGGER.error("cold_differential must be a Temperature instance.")
+                raise InvalidParameterError("cold_differential must be a Temperature instance.")
+            
+        if cold_min_tank_temp is not None:
+            if isinstance(cold_min_tank_temp, Temperature):
+                temp_f = cold_min_tank_temp.to_fahrenheit()
+                if not (35 <= temp_f <= 200):
+                    _LOGGER.error("cold_min_tank_temp must be between 35°F and 200°F.")
+                    raise InvalidParameterError("cold_min_tank_temp must be between 35°F and 200°F.")
+                payload["dst"] = round(temp_f)
+            else:
+                _LOGGER.error("cold_min_tank_temp must be a Temperature instance.")
+                raise InvalidParameterError("cold_min_tank_temp must be a Temperature instance.")
+            
+        if cold_max_tank_temp is not None:
+            if isinstance(cold_max_tank_temp, Temperature):
+                temp_f = cold_max_tank_temp.to_fahrenheit()
+                if not (35 <= temp_f <= 200):
+                    _LOGGER.error("cold_max_tank_temp must be between 35°F and 200°F.")
+                    raise InvalidParameterError("cold_max_tank_temp must be between 35°F and 200°F.")
+                payload["mst"] = round(temp_f)
+            else:
+                _LOGGER.error("cold_max_tank_temp must be a Temperature instance.")
+                raise InvalidParameterError("cold_max_tank_temp must be a Temperature instance.")
+            
+        ###############################################################################################    
+        # Domestic Hot Water Parameters
+        ###############################################################################################        
+        
+        ###############################################################################################    
+        # Backup Parameters
+        ###############################################################################################          
+            
+        if backup_time is not None:
+            if isinstance(backup_time, str):
+                if backup_time.lower() != "off":
+                    _LOGGER.error("Backup time must be an integer between 1 and 240 or 'off'.")
+                    raise InvalidParameterError("Backup time must be an integer between 1 and 240 or 'off'.")
+                payload["bkLag"] = 0
+            elif isinstance(backup_time, int):
+                if not (1 <= backup_time <= 240):
+                    _LOGGER.error("Backup time must be an integer between 1 and 240.")
+                    raise InvalidParameterError("Backup time must be an integer between 1 and 240.")
+                payload["bkLag"] = backup_time
+            else:
+                _LOGGER.error("Backup time must be an integer between 1 and 240 or 'off'.")
+                raise InvalidParameterError("Backup time must be an integer between 1 and 240 or 'off'.")
+            
+        if backup_temp is not None:
+            if isinstance(backup_temp, str) and backup_temp.lower() == "off":
+                payload["bkTemp"] = 0
+            elif isinstance(backup_temp, Temperature):
+                temp_f = backup_temp.to_fahrenheit()
+                if not (2 <= temp_f <= 100):
+                    _LOGGER.error("Backup temperature must be between 2°F and 100°F.")
+                    raise InvalidParameterError("backup_temp must be between 2°F and 100°F.")
+                payload["bkTemp"] = round(temp_f)
+            else:
+                _LOGGER.error("backup_temp must be a Temperature instance or 'off'.")
+                raise InvalidParameterError("backup_temp must be a Temperature instance or 'off'.")
+            
+        if backup_differential is not None:
+            if isinstance(backup_differential, str) and backup_differential.lower() == "off":
+                payload["bkDif"] = 0
+            elif isinstance(backup_differential, Temperature):
+                temp_f = backup_differential.to_fahrenheit()
+                if not (2 <= temp_f <= 100):
+                    _LOGGER.error("Backup differential must be between 2°F and 100°F.")
+                    raise InvalidParameterError("backup_differential must be between 2°F and 100°F.")
+                payload["bkDif"] = round(temp_f)
+            else:
+                _LOGGER.error("backup_differential must be a Temperature instance or 'off'.")
+                raise InvalidParameterError("backup_differential must be a Temperature instance or 'off'.")
+            
+            
 
+        # --- End of parameter processing, payload is ready ---
         if not payload:
             _LOGGER.error("At least one optional parameter must be provided")
             raise InvalidParameterError("At least one optional parameter must be provided.")
@@ -690,24 +875,159 @@ class SensorlinxDevice:
             LoginError: If the API call fails for login reasons.
             RuntimeError: If the API call fails for other reasons.
         """
-        if isinstance(value, str):
-            if value.lower() != "off":
-                _LOGGER.error("Rotate time must be an integer between 1 and 240 or 'off'.")
-                raise InvalidParameterError("Rotate time must be an integer between 1 and 240 or 'off'.")
-            rotate_time = 0
-        elif isinstance(value, int):
-            if not (1 <= value <= 240):
-                _LOGGER.error("Rotate time must be an integer between 1 and 240.")
-                raise InvalidParameterError("Rotate time must be an integer between 1 and 240.")
-            rotate_time = value
-        else:
-            _LOGGER.error("Rotate time must be an integer between 1 and 240 or 'off'.")
-            raise InvalidParameterError("Rotate time must be an integer between 1 and 240 or 'off'.")
 
         await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, rotate_time=rotate_time
+            self.building_id, self.device_id, rotate_time=value
+        )
+        
+    async def set_off_staging(self, value: bool) -> None:
+        """
+        Set the Off Staging feature for the device.
+
+        If set to False (OFF), the heat pumps will stage off normally based on tank temperature,
+        differential settings, or Stage OFF Lagtime settings.
+        If set to True (ON), all heat pumps will stage off at the same time based on tank temperature
+        and differential settings.
+
+        Args:
+            value (bool): True to enable Off Staging (ON), False to disable (OFF).
+
+        Raises:
+            InvalidParameterError: If the value is not a boolean.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, off_staging=value
+        )
+        
+    async def set_heat_cool_switch_delay(self, value: int) -> None:
+        """
+        Set the delay between switching from heat to cool (and vice versa).
+
+        This setting specifies the delay (in seconds) between the control switching between heat and cool calls.
+        Allowed values: 30 to 600 seconds.
+
+        Args:
+            value (int): The delay in seconds (must be between 30 and 600).
+
+        Raises:
+            InvalidParameterError: If the value is not between 30 and 600.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, heat_cool_switch_delay=value
+        )
+        
+    #################################################################################################################################
+    #                                               Hot Tank Setup Methods
+    #################################################################################################################################
+    
+    
+    async def set_warm_weather_shutdown(self, value: Union[Temperature, str]) -> None:
+        """
+        Set the warm weather shutdown (WWSD) parameter for the device.
+
+        WWSD is used to set the temperature at which the ECO-0600 will enter Warm Weather Shutdown.
+        If the system rises above this temperature, the system will be shut off (heat pumps and backup boiler).
+        Allowed values: "off" (to disable) or a Temperature between 34°F and 180°F (inclusive).
+
+        Args:
+            value (Temperature or str): The value to set for WWSD (Temperature instance or 'off').
+
+        Raises:
+            InvalidParameterError: If the value is invalid.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, warm_weather_shutdown=value
+        )
+        
+    async def set_hot_tank_outdoor_reset(self, value: Union[int, str]) -> None:
+        """
+        Set the Outdoor Reset (Design Outdoor Temperature) parameter for the hot tank.
+
+        This is used in the outdoor reset design calculation for the hot tank. Set to "off" if not using outdoor reset.
+        With this enabled, the Tank Temperature setting will be replaced by Min Tank and Max Tank Temperature settings for the hot tank.
+
+        Args:
+            value (Union[int, str]): The design outdoor temperature in °F (-40 to 127) or "off" to disable.
+
+        Raises:
+            InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, hot_tank_outdoor_reset=value
+        )
+        
+    async def set_heat_differential(self, value: Temperature) -> None:
+        """
+        Set the heat differential for the hot tank.
+
+        This temperature sets the desired hot tank differential. For example, a differential of 4°F will allow for 2 degrees above
+        and/or 2 degrees below the desired temperature before a demand is present.
+
+        Args:
+            value (Temperature): The differential as a Temperature object.
+
+        Raises:
+            InvalidParameterError: If the value is not a Temperature instance.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, heat_differential=value
+        )
+        
+    async def set_hot_min_tank_temp(self, value: Temperature) -> None:
+        """
+        Set the minimum tank temperature for the hot tank.
+
+        This setting is the bottom of the heat curve. The target will hit this temperature as the
+        Outdoor Temperature approaches the WWSD. Allowed values: 35°F to 200°F. Default: 80°F.
+
+        Args:
+            value (Temperature): The minimum tank temperature as a Temperature object.
+
+        Raises:
+            InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, hot_min_tank_temp=value
+        )
+        
+    async def set_hot_max_tank_temp(self, value: Temperature) -> None:
+        """
+        Set the maximum tank temperature for the hot tank.
+
+        This setting is the top of the heat curve. The target will hit this temperature as the
+        Outdoor Temperature approaches the Design Outdoor Temperature.
+        Allowed values: 35°F to 200°F. Default: 115°F.
+
+        Args:
+            value (Temperature): The maximum tank temperature as a Temperature object.
+
+        Raises:
+            InvalidParameterError: If the value is invalid (not a Temperature or out of range).
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, hot_max_tank_temp=value
         )
 
+    #################################################################################################################################
+    #                                               Cold Tank Set Methods
+    #################################################################################################################################
 
     async def set_cold_weather_shutdown(self, value) -> None:
         """
@@ -724,21 +1044,151 @@ class SensorlinxDevice:
         await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, cold_weather_shutdown=value
         )
-
-    async def set_warm_weather_shutdown(self, value) -> None:
+        
+    async def set_cold_tank_outdoor_reset(self, value: Union[int, str]) -> None:
         """
-        Set the warm weather shutdown parameter for the device.
+        Set the Outdoor Reset (Design Outdoor Temperature) parameter for the cold tank.
+
+        This is used in the outdoor reset design calculation for the cold tank. Set to "off" if not using outdoor reset.
+        With this enabled, the Tank Temperature setting will be replaced by Min Tank and Max Tank Temperature settings for the cold tank.
 
         Args:
-            value (Temperature or str): The value to set for warm weather shutdown (Temperature instance or 'off').
+            value (Union[int, str]): The design outdoor temperature in °F (0 to 119) or "off" to disable.
 
         Raises:
-            InvalidParameterError: If the value is invalid.
+            InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
             LoginError: If the API call fails for login reasons.
             RuntimeError: If the API call fails for other reasons.
         """
         await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, warm_weather_shutdown=value
+            self.building_id, self.device_id, cold_tank_outdoor_reset=value
+        )
+        
+    async def set_cold_differential(self, value: Temperature) -> None:
+        """
+        Set the cold tank differential for the device.
+
+        This temperature sets the desired cold tank differential. For example, a differential of 4°F will allow for 2 degrees above
+        and/or 2 degrees below the desired temperature before a demand is present.
+
+        Args:
+            value (Temperature): The differential as a Temperature object.
+
+        Raises:
+            InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, cold_differential=value
+        )
+        
+    async def set_cold_min_tank_temp(self, value: Temperature) -> None:
+        """
+        Set the minimum tank temperature for the cold tank.
+
+        This setting is the bottom of the cooling curve. The target will hit this temperature as the
+        Outdoor Temperature approaches the Outdoor Design Temperature.
+        Allowed values: 30°F to 200°F. Default: 45°F.
+
+        Args:
+            value (Temperature): The minimum tank temperature as a Temperature object.
+
+        Raises:
+            InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, cold_min_tank_temp=value
+        )
+        
+    async def set_cold_max_tank_temp(self, value: Temperature) -> None:
+        """
+        Set the maximum tank temperature for the cold tank.
+
+        This setting is the top of the cooling curve. The target will hit this temperature as the
+        Outdoor Temperature approaches the Cold Weather Shutdown (CWSD).
+        Allowed values: 30°F to 200°F. Default: 60°F.
+
+        Args:
+            value (Temperature): The maximum tank temperature as a Temperature object.
+
+        Raises:
+            InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, cold_max_tank_temp=value
+        )
+        
+    #################################################################################################################################
+    #                                               Domestic Hot Water Set Methods
+    #################################################################################################################################
+    
+    #################################################################################################################################
+    #                                               Backup Set Methods
+    #################################################################################################################################  
+        
+    async def set_backup_time(self, value: Union[int, str]) -> None:
+        """
+        Set the backup time (lag time between heat pump stages and backup boiler).
+
+        This is the minimum lag time (in minutes) between heat pump stages and the backup boiler.
+        Allowed values: "off" (to disable) or an integer between 1 and 240.
+
+        Args:
+            value (Union[int, str]): Number of minutes (1-240) or "off" to disable.
+
+        Raises:
+            InvalidParameterError: If the value is not "off" or an integer in range.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, backup_time=value
+        )
+        
+    async def set_backup_temp(self, value: Union[int, str]) -> None:
+        """
+        Set the backup temperature threshold for the device.
+
+        When the outdoor temperature falls below this value, the backup will be allowed to come on.
+        If set to "off", this feature is disabled.
+
+        Args:
+            value (Temperature or str): The temperature threshold as a Temperature object or "off" to disable.
+
+        Raises:
+            InvalidParameterError: If the value is invalid (validation is handled elsewhere).
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, backup_temp=value
+        )
+        
+    async def set_backup_differential(self, value: Union[Temperature, str]) -> None:
+        """
+        Set the backup differential for the device.
+
+        This setting is used to set a differential on the tank at which you would like the backup to come on.
+        This setting will override the backup time settings and bring the backup on instantaneously if the target is at or below the differential.
+        (eg. Tank temperature of 115°F and a backup differential of 10°F. The backup boiler will come on at 105°F providing all of the heat pumps are already on)
+        Allowed values: "off" (to disable) or a Temperature between 2°F and 100°F.
+
+        Args:
+            value (Temperature or str): The backup differential as a Temperature object or "off" to disable.
+
+        Raises:
+            InvalidParameterError: If the value is invalid (validation is handled elsewhere).        
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, backup_differential=value
         )
 
     '''
