@@ -1,3 +1,17 @@
+'''
+    This file implements classes and methods to get and set parameters for the HBX ECO-0600 controller
+    via the Sensorlinx API.
+    It provides asynchronous methods for authentication, device and building management, and detailed
+    parameter control for the ECO-0600, including temperature, staging, backup, and other operational
+    settings.
+
+    The latest documentation for the HBX ECO-0600 controller as of the writing of this file can be found here:
+    https://admin.hbxcontrols.com/assets/Uploads/resources/ECO-0600-2.0.1.pdf
+
+    Any bugs or issues should be reported at:
+    https://github.com/sslivins/pysensorlinx/issues
+'''
+
 import logging
 import re
 from typing import List, Dict, Optional, Union
@@ -37,8 +51,6 @@ LOGIN_ENDPOINT = "account/login"
 PROFILE_ENDPOINT = "account/me"
 BUILDINGS_ENDPOINT = "buildings"
 DEVICES_ENDPOINT_TEMPLATE = "buildings/{building_id}/devices"
-
-
 
 class Temperature:
     def __init__(self, value: float, unit: str = "C"):
@@ -299,6 +311,7 @@ class Sensorlinx:
         Args:
             building_id (str): The ID of the building (required).
             device_id (str): The ID of the device (required).
+            
             permanent_hd (Optional[bool]): If True, always maintain buffer tank target temperature (heating).
             permanent_cd (Optional[bool]): If True, always maintain buffer tank target temperature (cooling).
             hvac_mode_priority (Optional[str]): The HVAC mode priority to set (e.g., "cool", "heat", "auto").
@@ -359,6 +372,7 @@ class Sensorlinx:
             else:
                 _LOGGER.error("Invalid HVAC mode priority. Must be 'cool', 'heat', or 'auto'.")
                 raise InvalidParameterError("Invalid HVAC mode priority. Must be 'cool', 'heat', or 'auto'.")
+            
         if weather_shutdown_lag_time is not None:
             if isinstance(weather_shutdown_lag_time, int) and weather_shutdown_lag_time >= 0:
                 payload["wwTime"] = weather_shutdown_lag_time
@@ -608,7 +622,12 @@ class Sensorlinx:
                 _LOGGER.error("backup_only_tank_temp must be a Temperature instance or 'off'.")
                 raise InvalidParameterError("backup_only_tank_temp must be a Temperature instance or 'off'.")
             
+        ###############################################################################################
+        #                       Pump Parameters
+        ###############################################################################################
             
+            
+        ###############################################################################################
         # --- End of parameter processing, payload is ready ---
         if not payload:
             _LOGGER.error("At least one optional parameter must be provided")
