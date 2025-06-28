@@ -315,14 +315,14 @@ class Sensorlinx:
             permanent_hd (Optional[bool]): If True, always maintain buffer tank target temperature (heating).
             permanent_cd (Optional[bool]): If True, always maintain buffer tank target temperature (cooling).
             hvac_mode_priority (Optional[str]): The HVAC mode priority to set (e.g., "cool", "heat", "auto").
-            weather_shutdown_lag_time (Optional[int]): Lag time for warm/cold weather shutdown.
+            weather_shutdown_lag_time (Optional[int]): Lag time for warm/cold weather shutdown (0-240 hours)
             wide_priority_differential (Optional[bool]): If True, enables wide priority differential for the device.
             number_of_stages (Optional[int]): Number of heat pump stages attached to the control (1-4).
             two_stage_heat_pump (Optional[bool]): If True, enables two-stage heat pump mode.
             stage_on_lag_time (Optional[int]): Lag time in minutes between heat pump stages (1-240).
-            stage_off_lag_time (Optional[int]): Lag time in seconds between heat pump stages (0-240).
-            rotate_cycles (Optional[Union[int, str]]): Number of cycles to rotate heat pumps, or 'off' to disable.
-            rotate_time (Optional[Union[int, str]]): Time of rotation between heat pumps in hours, or 'off' to disable.
+            stage_off_lag_time (Optional[int]): Lag time in seconds between heat pump stages (1-240).
+            rotate_cycles (Optional[Union[int, str]]): Number of cycles to rotate heat pumps (1-240) or 'off' to disable.
+            rotate_time (Optional[Union[int, str]]): Time of rotation between heat pumps in hours (1-240) or 'off' to disable.
             off_staging (Optional[bool]): If True, enables Off Staging feature for the device.
             heat_cool_switch_delay (Optional[int]): Delay in seconds between switching from heat to cool (30-600).
             warm_weather_shutdown (Optional[Temperature or str]): when in heating mode shuts the heat pump off above this temperature, or 'off' to disable.
@@ -374,42 +374,50 @@ class Sensorlinx:
                 raise InvalidParameterError("Invalid HVAC mode priority. Must be 'cool', 'heat', or 'auto'.")
             
         if weather_shutdown_lag_time is not None:
-            if isinstance(weather_shutdown_lag_time, int) and weather_shutdown_lag_time >= 0:
+            if isinstance(weather_shutdown_lag_time, int) and 0 <= weather_shutdown_lag_time <= 240:
                 payload["wwTime"] = weather_shutdown_lag_time
             else:
-                _LOGGER.error("Invalid value for warm or cold weather shutdown time. Must be a non-negative integer.")
-                raise InvalidParameterError("weather_shutdown_lag_time must be a non-negative integer.")
+                _LOGGER.error("Invalid value for warm or cold weather shutdown time. Must be an integer between 0 and 240.")
+                raise InvalidParameterError("Invalid weather shutdown lag time. Must be an integer between 0 and 240.")
 
         if wide_priority_differential is not None:
-            payload["wPDif"] = wide_priority_differential
+            if isinstance(wide_priority_differential, bool):
+                payload["wPDif"] = wide_priority_differential
+            else:
+                _LOGGER.error("Wide priority differential value must be a boolean.")
+                raise InvalidParameterError("Wide priority differential value must be a boolean.")
+            
+        ###############################################################################################    
+        # Heat Pump Setup
+        ###############################################################################################             
             
         if number_of_stages is not None:
             if isinstance(number_of_stages, int) and 1 <= number_of_stages <= 4:
                 payload["numStg"] = number_of_stages
             else:
                 _LOGGER.error("Number of stages must be an integer between 1 and 4.")
-                raise InvalidParameterError("number_of_stages must be an integer between 1 and 4.")
+                raise InvalidParameterError("Number of stages must be an integer between 1 and 4.")
         
         if two_stage_heat_pump is not None:
             if isinstance(two_stage_heat_pump, bool):
                 payload["twoS"] = two_stage_heat_pump
             else:
-                _LOGGER.error("two_stage_heat_pump must be a boolean value.")
-                raise InvalidParameterError("two_stage_heat_pump must be a boolean value.")
+                _LOGGER.error("Two stage heat pump value must be a boolean.")
+                raise InvalidParameterError("Two stage heat pump value must be a boolean.")
             
         if stage_on_lag_time is not None:
             if isinstance(stage_on_lag_time, int) and 1 <= stage_on_lag_time <= 240:
                 payload["lagT"] = stage_on_lag_time
             else:
-                _LOGGER.error("Stage ON Lagtime must be an integer between 1 and 240 minutes.")
-                raise InvalidParameterError("stage_on_lag_time must be an integer between 1 and 240 minutes.")
+                _LOGGER.error("Stage ON Lagtime value must be an integer between 1 and 240 minutes.")
+                raise InvalidParameterError("Stage ON Lagtime value must be an integer between 1 and 240 minutes.")
             
         if stage_off_lag_time is not None:
-            if isinstance(stage_off_lag_time, int) and 0 <= stage_off_lag_time <= 240:
+            if isinstance(stage_off_lag_time, int) and 1 <= stage_off_lag_time <= 240:
                 payload["lagOff"] = stage_off_lag_time
             else:
-                _LOGGER.error("Stage OFF Lagtime must be an integer between 0 and 240 seconds.")
-                raise InvalidParameterError("stage_off_lag_time must be an integer between 0 and 240 seconds.")
+                _LOGGER.error("Stage OFF lag time value must be an integer between 1 and 240 seconds.")
+                raise InvalidParameterError("Stage OFF lag time value must be an integer between 1 and 240 seconds.")
             
         if rotate_cycles is not None:
             if isinstance(rotate_cycles, str) and rotate_cycles.lower() == "off":
@@ -417,8 +425,8 @@ class Sensorlinx:
             elif isinstance(rotate_cycles, int) and 1 <= rotate_cycles <= 240:
                 payload["rotCy"] = rotate_cycles
             else:
-                _LOGGER.error("Rotate cycles must be an integer between 1 and 240 or 'off'.")
-                raise InvalidParameterError("rotate_cycles must be an integer between 1 and 240 or 'off'.")
+                _LOGGER.error("Rotate cycles value must be an integer between 1 and 240 or 'off'.")
+                raise InvalidParameterError("Rotate cycles value must be an integer between 1 and 240 or 'off'.")
             
         if rotate_time is not None:
             if isinstance(rotate_time, str) and rotate_time.lower() == "off":
@@ -427,14 +435,14 @@ class Sensorlinx:
                 payload["rotTi"] = rotate_time
             else:
                 _LOGGER.error("Rotate time must be an integer between 1 and 240 or 'off'.")
-                raise InvalidParameterError("rotate_time must be an integer between 1 and 240 or 'off'.")
+                raise InvalidParameterError("Rotate time must be an integer between 1 and 240 or 'off'.")
             
         if off_staging is not None:
             if isinstance(off_staging, bool):
                 payload["hpStg"] = off_staging
             else:
                 _LOGGER.error("Off staging must be a boolean value.")
-                raise InvalidParameterError("off_staging must be a boolean value.")
+                raise InvalidParameterError("Off staging must be a boolean value.")
             
         if heat_cool_switch_delay is not None:
             if isinstance(heat_cool_switch_delay, int) and 30 <= heat_cool_switch_delay <= 600:
@@ -712,9 +720,6 @@ class SensorlinxDevice:
             LoginError: If the API call fails for login reasons.
             RuntimeError: If the API call fails for other reasons.
         """
-        if not isinstance(value, int) or value < 0:
-            _LOGGER.error("Invalid value for warm or cold weather shutdown time. Must be a non-negative integer.")
-            raise InvalidParameterError("Value must be a non-negative integer.")
 
         await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, weather_shutdown_lag_time=value
@@ -801,9 +806,7 @@ class SensorlinxDevice:
             LoginError: If the API call fails for login reasons.
             RuntimeError: If the API call fails for other reasons.
         """
-        if not isinstance(value, int) or not (1 <= value <= 4):
-            _LOGGER.error("Number of stages must be an integer between 1 and 4.")
-            raise InvalidParameterError("Number of stages must be an integer between 1 and 4.")
+
         await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, number_of_stages=value
         )
@@ -843,9 +846,6 @@ class SensorlinxDevice:
             LoginError: If the API call fails for login reasons.
             RuntimeError: If the API call fails for other reasons.
         """
-        if not isinstance(value, int) or not (1 <= value <= 240):
-            _LOGGER.error("Stage ON Lagtime must be an integer between 1 and 240 minutes.")
-            raise InvalidParameterError("Stage ON Lagtime must be an integer between 1 and 240 minutes.")
         
         await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, stage_on_lag_time=value
@@ -856,19 +856,16 @@ class SensorlinxDevice:
         Set the Stage OFF Lagtime for the device.
 
         When the heat pump is set for more than 1 stage, this setting specifies the minimum OFF lagtime (in seconds) between heat pump stages.
-        Allowed values: 0-240 seconds.
+        Allowed values: 1-240 seconds.
 
         Args:
-            value (int): The lag time in seconds to wait before deactivating the next stage (must be between 0 and 240).
+            value (int): The lag time in seconds to wait before deactivating the next stage (must be between 1 and 240).
 
         Raises:
-            InvalidParameterError: If the value is not between 0 and 240.
+            InvalidParameterError: If the value is not between 1 and 240.
             LoginError: If the API call fails for login reasons.
             RuntimeError: If the API call fails for other reasons.
         """
-        if not isinstance(value, int) or not (0 <= value <= 240):
-            _LOGGER.error("Stage OFF Lagtime must be an integer between 0 and 240 seconds.")
-            raise InvalidParameterError("Stage OFF Lagtime must be an integer between 0 and 240 seconds.")
 
         await self.sensorlinx.set_device_parameter(
             self.building_id, self.device_id, stage_off_lag_time=value
@@ -889,22 +886,9 @@ class SensorlinxDevice:
             LoginError: If the API call fails for login reasons.
             RuntimeError: If the API call fails for other reasons.
         """
-        if isinstance(value, str):
-            if value.lower() != "off":
-                _LOGGER.error("Rotate cycles must be an integer between 1 and 240 or 'off'.")
-                raise InvalidParameterError("Rotate cycles must be an integer between 1 and 240 or 'off'.")
-            cycles = 0
-        elif isinstance(value, int):
-            if not (1 <= value <= 240):
-                _LOGGER.error("Rotate cycles must be an integer between 1 and 240.")
-                raise InvalidParameterError("Rotate cycles must be an integer between 1 and 240.")
-            cycles = value
-        else:
-            _LOGGER.error("Rotate cycles must be an integer between 1 and 240 or 'off'.")
-            raise InvalidParameterError("Rotate cycles must be an integer between 1 and 240 or 'off'.")
 
         await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, rotate_cycles=cycles
+            self.building_id, self.device_id, rotate_cycles=value
         )
         
     async def set_rotate_time(self, value: Union[int, str]) -> None:
