@@ -54,10 +54,15 @@ DEVICES_ENDPOINT_TEMPLATE = "buildings/{building_id}/devices"
 
 class Temperature:
     def __init__(self, value: float, unit: str = "C"):
+        if unit is None:
+            raise ValueError("Unit must be 'C' for Celsius or 'F' for Fahrenheit")
         unit = unit.upper()
         if unit not in ("C", "F"):
             raise ValueError("Unit must be 'C' for Celsius or 'F' for Fahrenheit")
-        self.value = float(value)
+        try:
+            self.value = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Temperature value must be a float or convertible to float")
         self.unit = unit
 
     def to_celsius(self) -> float:
@@ -291,7 +296,7 @@ class Sensorlinx:
         rotate_time: Optional[Union[int, str]] = None,
         off_staging: Optional[bool] = None,
         heat_cool_switch_delay: Optional[int] = None,
-        hot_tank_outdoor_reset: Optional[Union[int, str]] = None,
+        hot_tank_outdoor_reset: Optional[Union[Temperature, str]] = None,
         heat_differential: Optional[Temperature] = None,
         hot_min_tank_temp: Optional[Temperature] = None,
         hot_max_tank_temp: Optional[Temperature] = None,
@@ -325,8 +330,8 @@ class Sensorlinx:
             rotate_time (Optional[Union[int, str]]): Time of rotation between heat pumps in hours (1-240) or 'off' to disable.
             off_staging (Optional[bool]): If True, enables Off Staging feature for the device.
             heat_cool_switch_delay (Optional[int]): Delay in seconds between switching from heat to cool (30-600).
-            warm_weather_shutdown (Optional[Temperature or str]): when in heating mode shuts the heat pump off above this temperature, or 'off' to disable.
-            hot_tank_outdoor_reset (Optional[Union[int, str]]): Design temperature for outdoor reset in °F (-40 to 127) or 'off' to disable.
+            warm_weather_shutdown (Optional[Temperature or str]): when in heating mode shuts the heat pump off above this temperature (34 to 180F) or 'off' to disable.
+            hot_tank_outdoor_reset (Optional[Union[Temperature, str]]): temperature for outdoor reset in °F (-40 to 127) or 'off' to disable.
             heat_differential (Optional[Temperature]): The heat differential to set for the device.
             hot_min_tank_temp (Optional[Temperature]): The minimum tank temperature for the hot tank (35°F to 200°F)
             hot_max_tank_temp (Optional[Temperature]): The maximum tank temperature for the hot tank (35°F to 200°F)
@@ -379,6 +384,13 @@ class Sensorlinx:
             else:
                 _LOGGER.error("Invalid value for warm or cold weather shutdown time. Must be an integer between 0 and 240.")
                 raise InvalidParameterError("Invalid weather shutdown lag time. Must be an integer between 0 and 240.")
+            
+        if heat_cool_switch_delay is not None:
+            if isinstance(heat_cool_switch_delay, int) and 30 <= heat_cool_switch_delay <= 600:
+                payload["hpSw"] = heat_cool_switch_delay
+            else:
+                _LOGGER.error("Heat/Cool Switch Delay must be an integer between 30 and 600 seconds.")
+                raise InvalidParameterError("Heat/Cool Switch Delay must be an integer between 30 and 600 seconds.")            
 
         if wide_priority_differential is not None:
             if isinstance(wide_priority_differential, bool):
@@ -444,12 +456,6 @@ class Sensorlinx:
                 _LOGGER.error("Off staging must be a boolean value.")
                 raise InvalidParameterError("Off staging must be a boolean value.")
             
-        if heat_cool_switch_delay is not None:
-            if isinstance(heat_cool_switch_delay, int) and 30 <= heat_cool_switch_delay <= 600:
-                payload["hpSw"] = heat_cool_switch_delay
-            else:
-                _LOGGER.error("Heat/Cool Switch Delay must be an integer between 30 and 600 seconds.")
-                raise InvalidParameterError("heat_cool_switch_delay must be an integer between 30 and 600 seconds.")
             
         ###############################################################################################    
         # Hot Tank parameters
@@ -459,18 +465,27 @@ class Sensorlinx:
             if isinstance(warm_weather_shutdown, str) and warm_weather_shutdown.lower() == "off":
                 payload["wwsd"] = 32
             elif isinstance(warm_weather_shutdown, Temperature):
-                payload["wwsd"] = round(warm_weather_shutdown.to_fahrenheit())
+                temp_f = warm_weather_shutdown.to_fahrenheit()
+                if not (34 <= temp_f <= 180):
+                    _LOGGER.error("Warm weather shutdown must be between 34°F and 180°F or 'off'.")
+                    raise InvalidParameterError("Warm weather shutdown must be between 34°F and 180°F or 'off'.")
+                payload["wwsd"] = round(temp_f)
             else:
-                raise InvalidParameterError("warm_weather_shutdown must be a Temperature or 'off'")               
+                _LOGGER.error("Invalid type for warm weather shutdown. Must be a Temperature or 'off'.")
+                raise InvalidParameterError("Invalid type for warm weather shutdown. Must be a Temperature or 'off'.")
             
         if hot_tank_outdoor_reset is not None:
             if isinstance(hot_tank_outdoor_reset, str) and hot_tank_outdoor_reset.lower() == "off":
                 payload["dot"] = -41
-            elif isinstance(hot_tank_outdoor_reset, int) and -40 <= hot_tank_outdoor_reset <= 127:
-                payload["dot"] = hot_tank_outdoor_reset
+            elif isinstance(hot_tank_outdoor_reset, Temperature):
+                temp_f = hot_tank_outdoor_reset.to_fahrenheit()
+                if not (-40 <= temp_f <= 127):
+                    _LOGGER.error(f"Hot tank outdoor reset must be between -40°F and 127°F or 'off': Got {temp_f}°F")
+                    raise InvalidParameterError("Hot tank outdoor reset must be between -40°F and 127°F or 'off'.")
+                payload["dot"] = round(temp_f)
             else:
-                _LOGGER.error("Outdoor reset must be an integer between -40 and 127 or 'off'.")
-                raise InvalidParameterError("hot_tank_outdoor_reset must be an integer between -40 and 127 or 'off'.")
+                _LOGGER.error("Hot tank outdoor reset must be a Temperature instance or 'off'.")
+                raise InvalidParameterError("Hot tank outdoor reset must be a Temperature instance or 'off'.")
             
         if heat_differential is not None:
             if isinstance(heat_differential, Temperature):
@@ -978,7 +993,7 @@ class SensorlinxDevice:
             self.building_id, self.device_id, warm_weather_shutdown=value
         )
         
-    async def set_hot_tank_outdoor_reset(self, value: Union[int, str]) -> None:
+    async def set_hot_tank_outdoor_reset(self, value: Union[Temperature, str]) -> None:
         """
         Set the Outdoor Reset (Design Outdoor Temperature) parameter for the hot tank.
 
@@ -986,7 +1001,7 @@ class SensorlinxDevice:
         With this enabled, the Tank Temperature setting will be replaced by Min Tank and Max Tank Temperature settings for the hot tank.
 
         Args:
-            value (Union[int, str]): The design outdoor temperature in °F (-40 to 127) or "off" to disable.
+            value (Union[Temperature, str]): The design outdoor temperature as a Temperature object (in °F or °C) or "off" to disable.
 
         Raises:
             InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
