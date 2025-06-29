@@ -305,10 +305,10 @@ class Sensorlinx:
         cold_tank_min_temp: Optional[Temperature] = None,
         cold_tank_max_temp: Optional[Temperature] = None,
         backup_lag_time: Optional[Union[int, str]] = None,
-        backup_temp: Optional[Temperature] = None,
-        backup_differential: Optional[Temperature] = None,
-        backup_only_outdoor_temp: Optional[Temperature] = None,
-        backup_only_tank_temp: Optional[Temperature] = None
+        backup_temp: Optional[Union[Temperature, str]] = None,
+        backup_differential: Optional[Union[Temperature, str]] = None,
+        backup_only_outdoor_temp: Optional[Union[Temperature, str]] = None,
+        backup_only_tank_temp: Optional[Union[Temperature, str]] = None
     ) -> None:
         """
         Set permanent heating and/or cooling demand for a specific device.
@@ -341,10 +341,10 @@ class Sensorlinx:
             cold_tank_min_temp (Optional[Temperature]): The minimum tank temperature for the cold tank (35°F to 200°F)
             cold_tank_max_temp (Optional[Temperature]): The maximum tank temperature for the cold tank (35°F to 200°F)
             backup_lag_time (Optional[Union[int, str]]): Minimum lag time between heat pump stages and backup boiler; accepts "off" or integer 1–240 (minutes). Default: "off".
-            backup_temp (Optional[Temperature]): The outdoor temperature at which the backup mode is activated (2F to 100F) or 'off' to disable.
-            backup_differential (Optional[Temperature]): The backup differential temperature to set for the device or 'off' to disable.
-            backup_only_outdoor_temp (Optional[Temperature]): The outdoor temperature at which the backup mode is activated (-40F to 127F) or 'off' to disable.
-            backup_only_tank_temp (Optional[Temperature]): The tank temperature at which the backup mode is activated (33F to 200F) or 'off' to disable.
+            backup_temp (Optional[Union[Temperature, str]]): The outdoor temperature at which the backup mode is activated (2F to 100F) or 'off' to disable.
+            backup_differential (Optional[Union[Temperature, str]]): Tank temperature difference below target at which backup boiler activates, overriding backup time if needed. Use "off" to disable, or a Temperature between 2°F and 100°F.
+            backup_only_outdoor_temp (Optional[Union[Temperature, str]]): The outdoor temperature below which the backup will only run (-40F to 127F) or 'off' to disable.
+            backup_only_tank_temp (Union[Temperature, str]): The maximum tank temperature for heat pumps to run at. Once exceeded, only the backup will heat the tank to the target temperature. Should be set lower than the hot tank target temperature (33°F to 200°F or "off" to disable)
 
         Raises:
             InvalidParameterError: If required parameters are missing or invalid.
@@ -614,12 +614,12 @@ class Sensorlinx:
             elif isinstance(backup_temp, Temperature):
                 temp_f = backup_temp.to_fahrenheit()
                 if not (2 <= temp_f <= 100):
-                    _LOGGER.error("Backup temperature must be between 2°F and 100°F.")
-                    raise InvalidParameterError("backup_temp must be between 2°F and 100°F.")
+                    _LOGGER.error("Backup temp must be between 2°F and 100°F.")
+                    raise InvalidParameterError("Backup temp must be between 2°F and 100°F.")
                 payload["bkTemp"] = round(temp_f)
             else:
-                _LOGGER.error("backup_temp must be a Temperature instance or 'off'.")
-                raise InvalidParameterError("backup_temp must be a Temperature instance or 'off'.")
+                _LOGGER.error("Backup temp must be a Temperature instance or 'off'.")
+                raise InvalidParameterError("Backup temp must be a Temperature instance or 'off'.")
             
         if backup_differential is not None:
             if isinstance(backup_differential, str) and backup_differential.lower() == "off":
@@ -628,11 +628,11 @@ class Sensorlinx:
                 temp_f = backup_differential.to_fahrenheit()
                 if not (2 <= temp_f <= 100):
                     _LOGGER.error("Backup differential must be between 2°F and 100°F.")
-                    raise InvalidParameterError("backup_differential must be between 2°F and 100°F.")
+                    raise InvalidParameterError("Backup differential must be between 2°F and 100°F.")
                 payload["bkDif"] = round(temp_f)
             else:
-                _LOGGER.error("backup_differential must be a Temperature instance or 'off'.")
-                raise InvalidParameterError("backup_differential must be a Temperature instance or 'off'.")
+                _LOGGER.error("Backup differential must be a Temperature instance or 'off'.")
+                raise InvalidParameterError("Backup differential must be a Temperature instance or 'off'.")
             
         if backup_only_outdoor_temp is not None:
             if isinstance(backup_only_outdoor_temp, str) and backup_only_outdoor_temp.lower() == "off":
@@ -641,11 +641,11 @@ class Sensorlinx:
                 temp_f = backup_only_outdoor_temp.to_fahrenheit()
                 if not (2 <= temp_f <= 100):
                     _LOGGER.error("Backup only outdoor temperature must be between 2°F and 100°F.")
-                    raise InvalidParameterError("backup_only_outdoor_temp must be between 2°F and 100°F.")
+                    raise InvalidParameterError("Backup only outdoor temperature must be between 2°F and 100°F.")
                 payload["bkOd"] = round(temp_f)
             else:
-                _LOGGER.error("backup_only_outdoor_temp must be a Temperature instance or 'off'.")
-                raise InvalidParameterError("backup_only_outdoor_temp must be a Temperature instance or 'off'.")
+                _LOGGER.error("Backup only outdoor temperature must be a Temperature instance or 'off'.")
+                raise InvalidParameterError("Backup only outdoor temperature must be a Temperature instance or 'off'.")
             
         if backup_only_tank_temp is not None:
             if isinstance(backup_only_tank_temp, str) and backup_only_tank_temp.lower() == "off":
@@ -653,12 +653,12 @@ class Sensorlinx:
             elif isinstance(backup_only_tank_temp, Temperature):
                 temp_f = backup_only_tank_temp.to_fahrenheit()
                 if not (33 <= temp_f <= 200):
-                    _LOGGER.error("Backup only tank temperature must be between 2°F and 100°F.")
-                    raise InvalidParameterError("backup_only_tank_temp must be between 2°F and 100°F.")
+                    _LOGGER.error("Backup only tank temperature must be between 33°F and 200°F.")
+                    raise InvalidParameterError("Backup only tank temperature must be between 33°F and 200°F.")
                 payload["bkTk"] = round(temp_f)
             else:
-                _LOGGER.error("backup_only_tank_temp must be a Temperature instance or 'off'.")
-                raise InvalidParameterError("backup_only_tank_temp must be a Temperature instance or 'off'.")
+                _LOGGER.error("Backup only tank temperature must be a Temperature instance or 'off'.")
+                raise InvalidParameterError("Backup only tank temperature must be a Temperature instance or 'off'.")
             
         ###############################################################################################
         #                       Pump Parameters
@@ -1254,7 +1254,7 @@ class SensorlinxDevice:
         Allowed values: "off" (to disable) or an integer between 1 and 240.
 
         Args:
-            value (Union[int, str]): Number of minutes (1-240) or "off" to disable.
+            value (Temperature or str): Number of minutes (1-240) or "off" to disable.
 
         Raises:
             InvalidParameterError: If the value is not "off" or an integer in range.
@@ -1266,7 +1266,7 @@ class SensorlinxDevice:
             self.building_id, self.device_id, backup_lag_time=value
         )
         
-    async def set_backup_temp(self, value: Union[int, str]) -> None:
+    async def set_backup_temp(self, value: Union[Temperature, str]) -> None:
         """
         Set the backup temperature threshold for the device.
 
@@ -1274,10 +1274,10 @@ class SensorlinxDevice:
         If set to "off", this feature is disabled.
 
         Args:
-            value (Temperature or str): The temperature threshold as a Temperature object or "off" to disable.
+            value (Temperature or str): The temperature threshold as a Temperature object with a valid range of 2F to 100F or "off" to disable.
 
         Raises:
-            InvalidParameterError: If the value is invalid (validation is handled elsewhere).
+            InvalidParameterError: If the value is invalid.
             LoginError: If the API call fails for login reasons.
             RuntimeError: If the API call fails for other reasons.
         """
@@ -1295,7 +1295,7 @@ class SensorlinxDevice:
         Allowed values: "off" (to disable) or a Temperature between 2°F and 100°F.
 
         Args:
-            value (Temperature or str): The backup differential as a Temperature object or "off" to disable.
+            value (Temperature or str): The backup differential as a Temperature object with a valid range of 2 to 100F or "off" to disable.
 
         Raises:
             InvalidParameterError: If the value is invalid (validation is handled elsewhere).        
@@ -1306,7 +1306,7 @@ class SensorlinxDevice:
             self.building_id, self.device_id, backup_differential=value
         )
         
-    async def set_backup_only_outdoor_temp(self, value: Temperature) -> None:
+    async def set_backup_only_outdoor_temp(self, value: Union[Temperature, str]) -> None:
         """
         Set the Backup Only Outdoor temperature threshold for the device.
 
@@ -1314,7 +1314,7 @@ class SensorlinxDevice:
         The heat pumps will not run until the outdoor temperature rises above this setting.
 
         Args:
-            value (Temperature): The temperature threshold as a Temperature object.
+            value (Union[Temperature, str]): The temperature threshold as a Temperature object (-40°F to 127°F) or 'off' to disable.
 
         Raises:
             InvalidParameterError: If the value is invalid (validation is handled elsewhere). 
@@ -1325,7 +1325,7 @@ class SensorlinxDevice:
             self.building_id, self.device_id, backup_only_outdoor_temp=value
         )
         
-    async def set_backup_only_tank_temp(self, value: Temperature) -> None:
+    async def set_backup_only_tank_temp(self, value: Union[Temperature, str]) -> None:
         """
         Set the Backup Only Tank temperature threshold for the device.
 
@@ -1333,7 +1333,8 @@ class SensorlinxDevice:
         This should be set lower than the hot tank target temperature for proper operation.
 
         Args:
-            value (Temperature): The maximum tank temperature for heat pumps to run at.
+            value (Temperature or str): The maximum tank temperature for heat pumps to run at.
+                Valid range is 33 to 200°F. Use the string 'off' to disable this feature.
 
         Raises:
             InvalidParameterError: If the value is invalid (validation is handled elsewhere). 
