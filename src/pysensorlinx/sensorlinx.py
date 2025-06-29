@@ -1494,7 +1494,12 @@ class SensorlinxDevice:
 
         result = {}
         
-        sensors = await self._get_device_info_value(TEMPERATURE_SENSORS, device_info)
+        try:
+            sensors = await self._get_device_info_value(TEMPERATURE_SENSORS, device_info)
+        except Exception as e:
+            _LOGGER.error(f"Failed to retrieve temperature sensors: {e}")
+            raise RuntimeError(f"Failed to retrieve temperature sensors: {e}")
+        
         if not isinstance(sensors, dict):
             raise RuntimeError("Temperature sensors data is not in expected format.")
         
@@ -1532,7 +1537,10 @@ class SensorlinxDevice:
             RuntimeError: If required runtime data is not found.
         """
         if device_info is None:
-            device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+            try:
+                device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+            except Exception as e:
+                raise RuntimeError(f"Failed to fetch device info: {e}")
         if not device_info:
             raise RuntimeError("Device info not found.")
         
@@ -1554,8 +1562,8 @@ class SensorlinxDevice:
         if not isinstance(stg_run, list):
             raise RuntimeError("Stage runtimes must be a list.")
 
-        if not (1 <= num_stg <= 4):
-            raise RuntimeError("Number of stages must be between 1 and 4.")
+        if not (1 <= num_stg <= 16):
+            raise RuntimeError("Number of stages must be between 1 and 16.")
 
         def parse_runtime(runtime_str):
             # Expects format "H:MM"
