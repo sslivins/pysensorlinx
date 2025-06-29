@@ -1236,3 +1236,65 @@ async def test_set_cold_tank_max_temp_non_temperature_type(sensorlinx_device_wit
   with pytest.raises(InvalidParameterError) as excinfo:
     await device.set_cold_tank_max_temp(invalid_input)
   assert str(excinfo.value) == expected_error
+  
+
+##################################################################################################
+# Backup Lag Time tests
+##################################################################################################
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("value,expected", [
+  (1, {"bkLag": 1}),
+  (120, {"bkLag": 120}),
+  (240, {"bkLag": 240}),
+  ("off", {"bkLag": 0}),
+  ("OFF", {"bkLag": 0}),
+  ("Off", {"bkLag": 0}),
+])
+async def test_set_backup_lag_time_valid(sensorlinx_device_with_patch, value, expected):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  await device.set_backup_lag_time(value)
+
+  assert sensorlinx._session.patch.call_count == 1
+  _, kwargs = sensorlinx._session.patch.call_args
+  assert kwargs["json"] == expected
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid_value", [
+  0, -1, 241, 1000,
+  "invalid", "on", "OFFF", "of", "Offf"
+])
+async def test_set_backup_lag_time_invalid(sensorlinx_device_with_patch, invalid_value):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  with pytest.raises(InvalidParameterError) as excinfo:
+    await device.set_backup_lag_time(invalid_value)
+  assert str(excinfo.value) == "Backup lag time must be an integer between 1 and 240 or 'off'."
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid_int", [
+  0, -1, 241, 1000
+])
+async def test_set_backup_lag_time_invalid_int(sensorlinx_device_with_patch, invalid_int):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  with pytest.raises(InvalidParameterError) as excinfo:
+    await device.set_backup_lag_time(invalid_int)
+  assert str(excinfo.value) == "Backup lag time must be an integer between 1 and 240 or 'off'."
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid_type,expected_error", [
+  (12.5, "Backup lag time must be an integer between 1 and 240 or 'off'."),
+  (True, "Backup lag time must be an integer between 1 and 240 or 'off'."),
+  (False, "Backup lag time must be an integer between 1 and 240 or 'off'."),
+  (None, "At least one optional parameter must be provided."),
+  (["off"], "Backup lag time must be an integer between 1 and 240 or 'off'."),
+  ({"value": 10}, "Backup lag time must be an integer between 1 and 240 or 'off'."),
+])
+async def test_set_backup_lag_time_invalid_type(sensorlinx_device_with_patch, invalid_type, expected_error):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  with pytest.raises(InvalidParameterError) as excinfo:
+    await device.set_backup_lag_time(invalid_type)
+  assert str(excinfo.value) == expected_error

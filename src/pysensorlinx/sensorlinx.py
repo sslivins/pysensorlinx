@@ -304,7 +304,7 @@ class Sensorlinx:
         cold_tank_differential: Optional[Temperature] = None,
         cold_tank_min_temp: Optional[Temperature] = None,
         cold_tank_max_temp: Optional[Temperature] = None,
-        backup_time: Optional[int] = None,
+        backup_lag_time: Optional[Union[int, str]] = None,
         backup_temp: Optional[Temperature] = None,
         backup_differential: Optional[Temperature] = None,
         backup_only_outdoor_temp: Optional[Temperature] = None,
@@ -340,7 +340,7 @@ class Sensorlinx:
             cold_tank_differential (Optional[Temperature]): The cold differential to set for the device (2°F to 100°F)
             cold_tank_min_temp (Optional[Temperature]): The minimum tank temperature for the cold tank (35°F to 200°F)
             cold_tank_max_temp (Optional[Temperature]): The maximum tank temperature for the cold tank (35°F to 200°F)
-            backup_time (Optional[int]): The time in minutes to wait before switching to backup mode.
+            backup_lag_time (Optional[Union[int, str]]): Minimum lag time between heat pump stages and backup boiler; accepts "off" or integer 1–240 (minutes). Default: "off".
             backup_temp (Optional[Temperature]): The outdoor temperature at which the backup mode is activated (2F to 100F) or 'off' to disable.
             backup_differential (Optional[Temperature]): The backup differential temperature to set for the device or 'off' to disable.
             backup_only_outdoor_temp (Optional[Temperature]): The outdoor temperature at which the backup mode is activated (-40F to 127F) or 'off' to disable.
@@ -593,20 +593,20 @@ class Sensorlinx:
         # Backup Parameters
         ###############################################################################################          
             
-        if backup_time is not None:
-            if isinstance(backup_time, str):
-                if backup_time.lower() != "off":
-                    _LOGGER.error("Backup time must be an integer between 1 and 240 or 'off'.")
-                    raise InvalidParameterError("Backup time must be an integer between 1 and 240 or 'off'.")
+        if backup_lag_time is not None:
+            if isinstance(backup_lag_time, str):
+                if backup_lag_time.lower() != "off":
+                    _LOGGER.error("Backup lag time must be an integer between 1 and 240 or 'off'.")
+                    raise InvalidParameterError("Backup lag time must be an integer between 1 and 240 or 'off'.")
                 payload["bkLag"] = 0
-            elif isinstance(backup_time, int):
-                if not (1 <= backup_time <= 240):
-                    _LOGGER.error("Backup time must be an integer between 1 and 240.")
-                    raise InvalidParameterError("Backup time must be an integer between 1 and 240.")
-                payload["bkLag"] = backup_time
+            elif isinstance(backup_lag_time, int) and not isinstance(backup_lag_time, bool):
+                if not (1 <= backup_lag_time <= 240):
+                    _LOGGER.error("Backup lag time must be an integer between 1 and 240.")
+                    raise InvalidParameterError("Backup lag time must be an integer between 1 and 240 or 'off'.")
+                payload["bkLag"] = backup_lag_time
             else:
-                _LOGGER.error("Backup time must be an integer between 1 and 240 or 'off'.")
-                raise InvalidParameterError("Backup time must be an integer between 1 and 240 or 'off'.")
+                _LOGGER.error("Backup lag time must be an integer between 1 and 240 or 'off'.")
+                raise InvalidParameterError("Backup lag time must be an integer between 1 and 240 or 'off'.")
             
         if backup_temp is not None:
             if isinstance(backup_temp, str) and backup_temp.lower() == "off":
@@ -1246,7 +1246,7 @@ class SensorlinxDevice:
     #                                               Backup Set Methods
     #################################################################################################################################  
         
-    async def set_backup_time(self, value: Union[int, str]) -> None:
+    async def set_backup_lag_time(self, value: Union[int, str]) -> None:
         """
         Set the backup time (lag time between heat pump stages and backup boiler).
 
@@ -1263,7 +1263,7 @@ class SensorlinxDevice:
         """
 
         await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, backup_time=value
+            self.building_id, self.device_id, backup_lag_time=value
         )
         
     async def set_backup_temp(self, value: Union[int, str]) -> None:
