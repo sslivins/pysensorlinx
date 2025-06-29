@@ -20,7 +20,7 @@ from http.cookies import SimpleCookie
 import asyncio
 import aiohttp
 import datetime
-
+from glom import glom, PathAccessError
 
 _LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -40,6 +40,42 @@ class NoTokenError(LoginError):
 class InvalidParameterError(Exception):
     """Raised when an invalid parameter is provided."""
 
+
+PERMANENT_HEAT_DEMAND = "permHD"
+PERMANENT_COOL_DEMAND = "permCD"
+HVAC_MODE_PRIORITY = "prior"
+WEATHER_SHUTDOWN_LAG_TIME = "wwTime"
+HEAT_COOL_SWITCH_DELAY = "hpSw"
+WIDE_PRIORITY_DIFFERENTIAL = "wPDif"
+NUMBER_OF_STAGES = "numStg"
+TWO_STAGE_HEAT_PUMP = "twoS"
+STAGE_ON_LAG_TIME = "lagT"
+STAGE_OFF_LAG_TIME = "lagOff"
+ROTATE_CYCLES = "rotCy"
+ROTATE_TIME = "rotTi"
+OFF_STAGING = "hpStg"
+WARM_WEATHER_SHUTDOWN = "wwsd"
+HOT_TANK_OUTDOOR_RESET = "dot"
+HOT_TANK_DIFFERENTIAL = "htDif"
+HOT_TANK_MIN_TEMP = "dbt"
+HOT_TANK_MAX_TEMP = "mbt"
+COLD_WEATHER_SHUTDOWN = "cwsd"
+COLD_TANK_OUTDOOR_RESET = "cdot"
+COLD_TANK_DIFFERENTIAL = "clDif"
+COLD_TANK_MIN_TEMP = "dst"
+COLD_TANK_MAX_TEMP = "mst"
+BACKUP_LAG_TIME = "bkLag"
+BACKUP_TEMP = "bkTemp"
+BACKUP_DIFFERENTIAL = "bkDif"
+BACKUP_ONLY_OUTDOOR_TEMP = "bkOd"
+BACKUP_ONLY_TANK_TEMP = "bkTk"
+FIRMWARE_VERSION = "firmVer"
+SYNC_CODE = "syncCode"
+DEVICE_PIN = "production.pin"
+DEVICE_TYPE = "deviceType"  # The type of device (e.g., "ECO-0600")
+HEATPUMP_STAGE_RUNTIMES = "stgRun"
+BACKUP_RUNTIME = "bkRun"
+TEMPERATURE_SENSORS = "temps"
 
 CONF_SITE_NAME = "site_name"       # The name of the site (e.g., "home")
 CONF_SENSOR_IDS = "sensor_ids"     # List of sensor IDs to extract (empty = all)
@@ -239,7 +275,7 @@ class Sensorlinx:
             _LOGGER.error(f"Exception fetching building(s): {e}")
             return None
         
-    async def get_devices(self, building_id: str, device_id: Optional[str] = None) -> Optional[Union[List[Dict[str, str]], Dict[str, str]]]:
+    async def get_devices(self, building_id: str, device_id: Optional[str] = None) -> Union[List[Dict[str, str]], Dict[str, str]]:
         ''' Fetch devices for a given building, or a specific device if device_id is provided
 
         Args:
@@ -247,13 +283,15 @@ class Sensorlinx:
             device_id (Optional[str]): The ID of the device. If not provided, fetches all devices for the building.
 
         Returns:
-            Optional[Union[List[Dict[str, str]], Dict[str, str]]]: 
-                - If device_id is None, returns a list of device dicts or None if not found or error.
-                - If device_id is provided, returns a dict for the device or None if not found or error.
+            Union[List[Dict[str, str]], Dict[str, str]]: 
+                - If device_id is None, returns a list of device dicts.
+                - If device_id is provided, returns a dict for the device.
+
+        Raises:
+            RuntimeError: If the request fails or the device(s) are not found.
         '''
         if self._session is None:
-            if not await self.login():
-                return None
+            await self.login()
 
         if device_id:
             url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}/{device_id}"
@@ -270,12 +308,14 @@ class Sensorlinx:
             ) as resp:
                 if resp.status != 200:
                     _LOGGER.error(f"Failed to fetch device(s) with status {resp.status}")
-                    return None
+                    raise RuntimeError(f"Failed to fetch device(s) with status {resp.status}")
                 data = await resp.json()
+                if not data:
+                    raise RuntimeError("No device data found.")
                 return data
         except Exception as e:
             _LOGGER.error(f"Exception fetching device(s): {e}")
-            return None
+            raise RuntimeError(f"Exception fetching device(s): {e}")
 
     async def set_device_parameter(
         self,
@@ -362,127 +402,120 @@ class Sensorlinx:
         payload = {}
         
         if permanent_hd is not None:
-            payload["permHD"] = permanent_hd
+            payload[PERMANENT_HEAT_DEMAND] = permanent_hd
             
         if permanent_cd is not None:
-            payload["permCD"] = permanent_cd
+            payload[PERMANENT_COOL_DEMAND] = permanent_cd
             
         if hvac_mode_priority is not None:
             if hvac_mode_priority == "heat":
-                payload["prior"] = 0
+                payload[HVAC_MODE_PRIORITY] = 0
             elif hvac_mode_priority == "cool":
-                payload["prior"] = 1
+                payload[HVAC_MODE_PRIORITY] = 1
             elif hvac_mode_priority == "auto":
-                payload["prior"] = 2
+                payload[HVAC_MODE_PRIORITY] = 2
             else:
                 _LOGGER.error("Invalid HVAC mode priority. Must be 'cool', 'heat', or 'auto'.")
                 raise InvalidParameterError("Invalid HVAC mode priority. Must be 'cool', 'heat', or 'auto'.")
-            
+        
         if weather_shutdown_lag_time is not None:
             if isinstance(weather_shutdown_lag_time, int) and 0 <= weather_shutdown_lag_time <= 240:
-                payload["wwTime"] = weather_shutdown_lag_time
+                payload[WEATHER_SHUTDOWN_LAG_TIME] = weather_shutdown_lag_time
             else:
                 _LOGGER.error("Invalid value for warm or cold weather shutdown time. Must be an integer between 0 and 240.")
                 raise InvalidParameterError("Invalid weather shutdown lag time. Must be an integer between 0 and 240.")
-            
+        
         if heat_cool_switch_delay is not None:
             if isinstance(heat_cool_switch_delay, int) and 30 <= heat_cool_switch_delay <= 600:
-                payload["hpSw"] = heat_cool_switch_delay
+                payload[HEAT_COOL_SWITCH_DELAY] = heat_cool_switch_delay
             else:
                 _LOGGER.error("Heat/Cool Switch Delay must be an integer between 30 and 600 seconds.")
                 raise InvalidParameterError("Heat/Cool Switch Delay must be an integer between 30 and 600 seconds.")            
 
         if wide_priority_differential is not None:
             if isinstance(wide_priority_differential, bool):
-                payload["wPDif"] = wide_priority_differential
+                payload[WIDE_PRIORITY_DIFFERENTIAL] = wide_priority_differential
             else:
                 _LOGGER.error("Wide priority differential value must be a boolean.")
                 raise InvalidParameterError("Wide priority differential value must be a boolean.")
-            
-        ###############################################################################################    
+        
         # Heat Pump Setup
-        ###############################################################################################             
-            
         if number_of_stages is not None:
             if isinstance(number_of_stages, int) and 1 <= number_of_stages <= 4:
-                payload["numStg"] = number_of_stages
+                payload[NUMBER_OF_STAGES] = number_of_stages
             else:
                 _LOGGER.error("Number of stages must be an integer between 1 and 4.")
                 raise InvalidParameterError("Number of stages must be an integer between 1 and 4.")
         
         if two_stage_heat_pump is not None:
             if isinstance(two_stage_heat_pump, bool):
-                payload["twoS"] = two_stage_heat_pump
+                payload[TWO_STAGE_HEAT_PUMP] = two_stage_heat_pump
             else:
                 _LOGGER.error("Two stage heat pump value must be a boolean.")
                 raise InvalidParameterError("Two stage heat pump value must be a boolean.")
             
         if stage_on_lag_time is not None:
             if isinstance(stage_on_lag_time, int) and 1 <= stage_on_lag_time <= 240:
-                payload["lagT"] = stage_on_lag_time
+                payload[STAGE_ON_LAG_TIME] = stage_on_lag_time
             else:
                 _LOGGER.error("Stage ON Lagtime value must be an integer between 1 and 240 minutes.")
                 raise InvalidParameterError("Stage ON Lagtime value must be an integer between 1 and 240 minutes.")
             
         if stage_off_lag_time is not None:
             if isinstance(stage_off_lag_time, int) and 1 <= stage_off_lag_time <= 240:
-                payload["lagOff"] = stage_off_lag_time
+                payload[STAGE_OFF_LAG_TIME] = stage_off_lag_time
             else:
                 _LOGGER.error("Stage OFF lag time value must be an integer between 1 and 240 seconds.")
                 raise InvalidParameterError("Stage OFF lag time value must be an integer between 1 and 240 seconds.")
             
         if rotate_cycles is not None:
             if isinstance(rotate_cycles, str) and rotate_cycles.lower() == "off":
-                payload["rotCy"] = 0
+                payload[ROTATE_CYCLES] = 0
             elif isinstance(rotate_cycles, int) and 1 <= rotate_cycles <= 240:
-                payload["rotCy"] = rotate_cycles
+                payload[ROTATE_CYCLES] = rotate_cycles
             else:
                 _LOGGER.error("Rotate cycles value must be an integer between 1 and 240 or 'off'.")
                 raise InvalidParameterError("Rotate cycles value must be an integer between 1 and 240 or 'off'.")
             
         if rotate_time is not None:
             if isinstance(rotate_time, str) and rotate_time.lower() == "off":
-                payload["rotTi"] = 0
+                payload[ROTATE_TIME] = 0
             elif isinstance(rotate_time, int) and 1 <= rotate_time <= 240:
-                payload["rotTi"] = rotate_time
+                payload[ROTATE_TIME] = rotate_time
             else:
                 _LOGGER.error("Rotate time must be an integer between 1 and 240 or 'off'.")
                 raise InvalidParameterError("Rotate time must be an integer between 1 and 240 or 'off'.")
             
         if off_staging is not None:
             if isinstance(off_staging, bool):
-                payload["hpStg"] = off_staging
+                payload[OFF_STAGING] = off_staging
             else:
                 _LOGGER.error("Off staging must be a boolean value.")
                 raise InvalidParameterError("Off staging must be a boolean value.")
             
-            
-        ###############################################################################################    
         # Hot Tank parameters
-        ###############################################################################################     
-        
         if warm_weather_shutdown is not None:
             if isinstance(warm_weather_shutdown, str) and warm_weather_shutdown.lower() == "off":
-                payload["wwsd"] = 32
+                payload[WARM_WEATHER_SHUTDOWN] = 32
             elif isinstance(warm_weather_shutdown, Temperature):
                 temp_f = warm_weather_shutdown.to_fahrenheit()
                 if not (34 <= temp_f <= 180):
                     _LOGGER.error("Warm weather shutdown must be between 34°F and 180°F or 'off'.")
                     raise InvalidParameterError("Warm weather shutdown must be between 34°F and 180°F or 'off'.")
-                payload["wwsd"] = round(temp_f)
+                payload[WARM_WEATHER_SHUTDOWN] = round(temp_f)
             else:
                 _LOGGER.error("Invalid type for warm weather shutdown. Must be a Temperature or 'off'.")
                 raise InvalidParameterError("Invalid type for warm weather shutdown. Must be a Temperature or 'off'.")
             
         if hot_tank_outdoor_reset is not None:
             if isinstance(hot_tank_outdoor_reset, str) and hot_tank_outdoor_reset.lower() == "off":
-                payload["dot"] = -41
+                payload[HOT_TANK_OUTDOOR_RESET] = -41
             elif isinstance(hot_tank_outdoor_reset, Temperature):
                 temp_f = hot_tank_outdoor_reset.to_fahrenheit()
                 if not (-40 <= temp_f <= 127):
                     _LOGGER.error(f"Hot tank outdoor reset must be between -40°F and 127°F or 'off': Got {temp_f}°F")
                     raise InvalidParameterError("Hot tank outdoor reset must be between -40°F and 127°F or 'off'.")
-                payload["dot"] = round(temp_f)
+                payload[HOT_TANK_OUTDOOR_RESET] = round(temp_f)
             else:
                 _LOGGER.error("Hot tank outdoor reset must be a Temperature instance or 'off'.")
                 raise InvalidParameterError("Hot tank outdoor reset must be a Temperature instance or 'off'.")
@@ -493,7 +526,7 @@ class Sensorlinx:
                 if not (2 <= temp_f <= 100):
                     _LOGGER.error("Hot tank differential must be between 2°F and 100°F.")
                     raise InvalidParameterError("Hot tank differential must be between 2°F and 100°F.")
-                payload["htDif"] = round(temp_f)
+                payload[HOT_TANK_DIFFERENTIAL] = round(temp_f)
             else:
                 _LOGGER.error("Hot tank differential must be a Temperature instance.")
                 raise InvalidParameterError("Hot tank differential must be a Temperature instance.")
@@ -504,7 +537,7 @@ class Sensorlinx:
                 if not (2 <= temp_f <= 180):
                     _LOGGER.error("Minimum tank temperature for the hot tank must be between 2°F and 180°F.")
                     raise InvalidParameterError("Minimum tank temperature for the hot tank must be between 2°F and 180°F.")
-                payload["dbt"] = round(temp_f)
+                payload[HOT_TANK_MIN_TEMP] = round(temp_f)
             else:
                 _LOGGER.error("Minimum tank temperature for the hot tank must be a Temperature instance.")
                 raise InvalidParameterError("Minimum tank temperature for the hot tank must be a Temperature instance.")
@@ -515,37 +548,34 @@ class Sensorlinx:
                 if not (2 <= temp_f <= 180):
                     _LOGGER.error("Maximum tank temperature for the hot tank must be between 2°F and 180°F.")
                     raise InvalidParameterError("Maximum tank temperature for the hot tank must be between 2°F and 180°F.")
-                payload["mbt"] = round(temp_f)
+                payload[HOT_TANK_MAX_TEMP] = round(temp_f)
             else:
                 _LOGGER.error("Maximum tank temperature for the hot tank must be a Temperature instance.")
                 raise InvalidParameterError("Maximum tank temperature for the hot tank must be a Temperature instance.")
             
-        ###############################################################################################    
         # Cold Tank parameters
-        ###############################################################################################
-            
         if cold_weather_shutdown is not None:
             if isinstance(cold_weather_shutdown, str) and cold_weather_shutdown.lower() == "off":
-                payload["cwsd"] = 32
+                payload[COLD_WEATHER_SHUTDOWN] = 32
             elif isinstance(cold_weather_shutdown, Temperature):
                 temp_f = cold_weather_shutdown.to_fahrenheit()
                 if not (33 <= temp_f <= 119):
                     _LOGGER.error("Cold weather shutdown must be between 33°F and 119°F or 'off'.")
                     raise InvalidParameterError("Cold weather shutdown must be between 33°F and 119°F or 'off'.")
-                payload["cwsd"] = round(temp_f)
+                payload[COLD_WEATHER_SHUTDOWN] = round(temp_f)
             else:
                 _LOGGER.error("Cold weather shutdown must be a Temperature instance or 'off'.")
                 raise InvalidParameterError("Cold weather shutdown must be a Temperature instance or 'off'.")
             
         if cold_tank_outdoor_reset is not None:
             if isinstance(cold_tank_outdoor_reset, str) and cold_tank_outdoor_reset.lower() == "off":
-                payload["cdot"] = -41
+                payload[COLD_TANK_OUTDOOR_RESET] = -41
             elif isinstance(cold_tank_outdoor_reset, Temperature):
                 temp_f = cold_tank_outdoor_reset.to_fahrenheit()
                 if not (0 <= temp_f <= 119):
                     _LOGGER.error("Cold tank outdoor reset must be between 0°F and 119°F or 'off'.")
                     raise InvalidParameterError("Cold tank outdoor reset must be between 0°F and 119°F or 'off'.")
-                payload["cdot"] = round(temp_f)
+                payload[COLD_TANK_OUTDOOR_RESET] = round(temp_f)
             else:
                 _LOGGER.error("Cold tank outdoor reset must be a Temperature instance or 'off'.")
                 raise InvalidParameterError("Cold tank outdoor reset must be a Temperature instance or 'off'.")
@@ -556,12 +586,10 @@ class Sensorlinx:
                 if not (2 <= temp_f <= 100):
                     _LOGGER.error("Cold tank differential must be between 2°F and 100°F.")
                     raise InvalidParameterError("Cold tank differential must be between 2°F and 100°F.")
-                payload["clDif"] = round(temp_f)
+                payload[COLD_TANK_DIFFERENTIAL] = round(temp_f)
             else:
                 _LOGGER.error("Cold tank differential must be a Temperature instance.")
                 raise InvalidParameterError("Cold tank differential must be a Temperature instance.")
-            
-        
             
         if cold_tank_min_temp is not None:
             if isinstance(cold_tank_min_temp, Temperature):
@@ -569,7 +597,7 @@ class Sensorlinx:
                 if not (2 <= temp_f <= 180):
                     _LOGGER.error("Cold tank min temperature must be between 2°F and 180°F.")
                     raise InvalidParameterError("Cold tank min temperature must be between 2°F and 180°F.")
-                payload["dst"] = round(temp_f)
+                payload[COLD_TANK_MIN_TEMP] = round(temp_f)
             else:
                 _LOGGER.error("Cold tank min temperature must be a Temperature instance.")
                 raise InvalidParameterError("Cold tank min temperature must be a Temperature instance.")
@@ -580,93 +608,79 @@ class Sensorlinx:
                 if not (2 <= temp_f <= 180):
                     _LOGGER.error("Cold tank max temperature must be between 2°F and 180°F.")
                     raise InvalidParameterError("Cold tank max temperature must be between 2°F and 180°F.")
-                payload["mst"] = round(temp_f)
+                payload[COLD_TANK_MAX_TEMP] = round(temp_f)
             else:
                 _LOGGER.error("Cold tank max temperature must be a Temperature instance.")
                 raise InvalidParameterError("Cold tank max temperature must be a Temperature instance.")
             
-        ###############################################################################################    
-        # Domestic Hot Water Parameters
-        ###############################################################################################        
-        
-        ###############################################################################################    
         # Backup Parameters
-        ###############################################################################################          
-            
         if backup_lag_time is not None:
             if isinstance(backup_lag_time, str):
                 if backup_lag_time.lower() != "off":
                     _LOGGER.error("Backup lag time must be an integer between 1 and 240 or 'off'.")
                     raise InvalidParameterError("Backup lag time must be an integer between 1 and 240 or 'off'.")
-                payload["bkLag"] = 0
+                payload[BACKUP_LAG_TIME] = 0
             elif isinstance(backup_lag_time, int) and not isinstance(backup_lag_time, bool):
                 if not (1 <= backup_lag_time <= 240):
                     _LOGGER.error("Backup lag time must be an integer between 1 and 240.")
                     raise InvalidParameterError("Backup lag time must be an integer between 1 and 240 or 'off'.")
-                payload["bkLag"] = backup_lag_time
+                payload[BACKUP_LAG_TIME] = backup_lag_time
             else:
                 _LOGGER.error("Backup lag time must be an integer between 1 and 240 or 'off'.")
                 raise InvalidParameterError("Backup lag time must be an integer between 1 and 240 or 'off'.")
             
         if backup_temp is not None:
             if isinstance(backup_temp, str) and backup_temp.lower() == "off":
-                payload["bkTemp"] = 0
+                payload[BACKUP_TEMP] = 0
             elif isinstance(backup_temp, Temperature):
                 temp_f = backup_temp.to_fahrenheit()
                 if not (2 <= temp_f <= 100):
                     _LOGGER.error("Backup temp must be between 2°F and 100°F.")
                     raise InvalidParameterError("Backup temp must be between 2°F and 100°F.")
-                payload["bkTemp"] = round(temp_f)
+                payload[BACKUP_TEMP] = round(temp_f)
             else:
                 _LOGGER.error("Backup temp must be a Temperature instance or 'off'.")
                 raise InvalidParameterError("Backup temp must be a Temperature instance or 'off'.")
             
         if backup_differential is not None:
             if isinstance(backup_differential, str) and backup_differential.lower() == "off":
-                payload["bkDif"] = 0
+                payload[BACKUP_DIFFERENTIAL] = 0
             elif isinstance(backup_differential, Temperature):
                 temp_f = backup_differential.to_fahrenheit()
                 if not (2 <= temp_f <= 100):
                     _LOGGER.error("Backup differential must be between 2°F and 100°F.")
                     raise InvalidParameterError("Backup differential must be between 2°F and 100°F.")
-                payload["bkDif"] = round(temp_f)
+                payload[BACKUP_DIFFERENTIAL] = round(temp_f)
             else:
                 _LOGGER.error("Backup differential must be a Temperature instance or 'off'.")
                 raise InvalidParameterError("Backup differential must be a Temperature instance or 'off'.")
             
         if backup_only_outdoor_temp is not None:
             if isinstance(backup_only_outdoor_temp, str) and backup_only_outdoor_temp.lower() == "off":
-                payload["bkOd"] = -41
+                payload[BACKUP_ONLY_OUTDOOR_TEMP] = -41
             elif isinstance(backup_only_outdoor_temp, Temperature):
                 temp_f = backup_only_outdoor_temp.to_fahrenheit()
                 if not (2 <= temp_f <= 100):
                     _LOGGER.error("Backup only outdoor temperature must be between 2°F and 100°F.")
                     raise InvalidParameterError("Backup only outdoor temperature must be between 2°F and 100°F.")
-                payload["bkOd"] = round(temp_f)
+                payload[BACKUP_ONLY_OUTDOOR_TEMP] = round(temp_f)
             else:
                 _LOGGER.error("Backup only outdoor temperature must be a Temperature instance or 'off'.")
                 raise InvalidParameterError("Backup only outdoor temperature must be a Temperature instance or 'off'.")
             
         if backup_only_tank_temp is not None:
             if isinstance(backup_only_tank_temp, str) and backup_only_tank_temp.lower() == "off":
-                payload["bkTk"] = 32
+                payload[BACKUP_ONLY_TANK_TEMP] = 32
             elif isinstance(backup_only_tank_temp, Temperature):
                 temp_f = backup_only_tank_temp.to_fahrenheit()
                 if not (33 <= temp_f <= 200):
                     _LOGGER.error("Backup only tank temperature must be between 33°F and 200°F.")
                     raise InvalidParameterError("Backup only tank temperature must be between 33°F and 200°F.")
-                payload["bkTk"] = round(temp_f)
+                payload[BACKUP_ONLY_TANK_TEMP] = round(temp_f)
             else:
                 _LOGGER.error("Backup only tank temperature must be a Temperature instance or 'off'.")
                 raise InvalidParameterError("Backup only tank temperature must be a Temperature instance or 'off'.")
             
-        ###############################################################################################
-        #                       Pump Parameters
-        ###############################################################################################
-            
-            
-        ###############################################################################################
-        # --- End of parameter processing, payload is ready ---
         if not payload:
             _LOGGER.error("At least one optional parameter must be provided")
             raise InvalidParameterError("At least one optional parameter must be provided.")
@@ -1352,14 +1366,13 @@ class SensorlinxDevice:
 
     '''
     
-    async def _get_device_info_value(self, key: str, device_info: Optional[Dict] = None, *, parent: Optional[str] = None) -> str:
+    async def _get_device_info_value(self, key: str, device_info: Optional[Dict] = None) -> str:
         """
-        Helper to get a value from device_info by key, optionally from a parent dict.
+        Helper to get a value from device_info by key, supporting dotted paths using glom.
 
         Args:
-            key (str): The key to retrieve.
+            key (str): The dotted key path to retrieve (e.g., "parent.child.value").
             device_info (Optional[Dict]): The device info dict.
-            parent (Optional[str]): If provided, look for the key inside this parent dict.
 
         Returns:
             str: The value found.
@@ -1367,20 +1380,24 @@ class SensorlinxDevice:
         Raises:
             RuntimeError: If the device info or key is not found.
         """
+
         if device_info is None:
-            device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+            try:
+                device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+            except Exception as e:
+                _LOGGER.error(f"Exception fetching device info: {e}")
+                raise RuntimeError(f"Failed to fetch device info: {e}")
         if not device_info:
             raise RuntimeError("Device info not found.")
-        if parent:
-            parent_dict = device_info.get(parent)
-            if not (parent_dict and isinstance(parent_dict, dict)):
-                raise RuntimeError(f"{parent.capitalize()} info not found.")
-            value = parent_dict.get(key)
-        else:
-            value = device_info.get(key)
+        
+        
+        try:
+            value = glom(device_info, key)
+        except PathAccessError:
+            raise RuntimeError(f"{key} not found.")
         if value is None:
-            raise RuntimeError(f"{key.replace('_', ' ').capitalize()} not found.")
-        return value    
+            raise RuntimeError(f"{key} not found.")
+        return value
     
     #################################################################################################################################
     #                                               General Device Get Methods
@@ -1399,7 +1416,7 @@ class SensorlinxDevice:
         Raises:
             RuntimeError: If the device or firmware version is not found.
         """
-        return await self._get_device_info_value("firmVer", device_info)
+        return await self._get_device_info_value(FIRMWARE_VERSION, device_info)
 
     async def get_sync_code(self, device_info: Optional[Dict] = None) -> str:
         """
@@ -1414,7 +1431,7 @@ class SensorlinxDevice:
         Raises:
             RuntimeError: If the device or sync code is not found.
         """
-        return await self._get_device_info_value("syncCode", device_info)
+        return await self._get_device_info_value(SYNC_CODE, device_info)
 
     async def get_device_pin(self, device_info: Optional[Dict] = None) -> str:
         """
@@ -1429,7 +1446,7 @@ class SensorlinxDevice:
         Raises:
             RuntimeError: If the device or PIN is not found.
         """
-        return await self._get_device_info_value("pin", device_info, parent="production")
+        return await self._get_device_info_value(DEVICE_PIN, device_info)
     
     async def get_device_type(self, device_info: Optional[Dict] = None) -> str:
         """
@@ -1444,7 +1461,7 @@ class SensorlinxDevice:
         Raises:
             RuntimeError: If the device or device type is not found.
         """
-        return await self._get_device_info_value("deviceType", device_info)
+        return await self._get_device_info_value(DEVICE_TYPE, device_info)
 
     async def get_temperatures(
         self, 
@@ -1467,12 +1484,21 @@ class SensorlinxDevice:
             RuntimeError: If the device or temperature data is not found.
         """
         if device_info is None:
-            device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
-        if not device_info or "temps" not in device_info:
-            raise RuntimeError("Device or temperature data not found.")
+            try:
+                device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+            except Exception as e:
+                _LOGGER.error(f"Exception fetching device info: {e}")
+                raise RuntimeError(f"Failed to fetch device info: {e}")
+        if not device_info:
+            raise RuntimeError("Device info not found.")
 
         result = {}
-        for temp_key, temp_info in device_info["temps"].items():
+        
+        sensors = await self._get_device_info_value(TEMPERATURE_SENSORS, device_info)
+        if not isinstance(sensors, dict):
+            raise RuntimeError("Temperature sensors data is not in expected format.")
+        
+        for temp_key, temp_info in sensors.items():
             sensor_title = temp_info.get("title")
             if sensor_title is None:
                 continue  # Skip entries with null titles
@@ -1500,7 +1526,7 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            Dict[str, Union[list, str]]: Dictionary with 'stages' as a list of timedelta objects and 'backup' as a string.
+            Dict[str, Union[list, str]]: Dictionary with 'stages' as a list of timedelta objects and 'backup' as a single timedelta object.
 
         Raises:
             RuntimeError: If required runtime data is not found.
@@ -1509,13 +1535,27 @@ class SensorlinxDevice:
             device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
         if not device_info:
             raise RuntimeError("Device info not found.")
+        
+        try:
+            stg_run = await self._get_device_info_value(HEATPUMP_STAGE_RUNTIMES, device_info)
+        except Exception as e:
+            raise RuntimeError(f"Failed to retrieve heat pump stage runtimes: {e}")
 
-        stg_run = device_info.get("stgRun")
-        num_stg = device_info.get("numStg")
-        bk_run = device_info.get("bkRun")
+        try:
+            num_stg = int(await self._get_device_info_value(NUMBER_OF_STAGES, device_info))
+        except Exception as e:
+            raise RuntimeError(f"Failed to retrieve number of stages: {e}")
 
-        if stg_run is None or num_stg is None:
-            raise RuntimeError("Stage runtime data not found.")
+        try:
+            bk_run = await self._get_device_info_value(BACKUP_RUNTIME, device_info)
+        except Exception:
+            bk_run = None  # Backup runtime is optional
+
+        if not isinstance(stg_run, list):
+            raise RuntimeError("Stage runtimes must be a list.")
+
+        if not (1 <= num_stg <= 4):
+            raise RuntimeError("Number of stages must be between 1 and 4.")
 
         def parse_runtime(runtime_str):
             # Expects format "H:MM"
@@ -1532,5 +1572,5 @@ class SensorlinxDevice:
             result["backup"] = parse_runtime(bk_run)  # You could also parse this if it's in the same format
 
         return result
-        
-    
+
+

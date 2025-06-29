@@ -21,7 +21,8 @@ classifiers = [
 ]
 # Runtime dependencies
 dependencies = [
-    "aiohttp>=3.11.12"
+    "aiohttp>=3.11.12",
+    "glom"
 ]
 
 [project.optional-dependencies]
