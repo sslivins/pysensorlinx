@@ -297,13 +297,13 @@ class Sensorlinx:
         off_staging: Optional[bool] = None,
         heat_cool_switch_delay: Optional[int] = None,
         hot_tank_outdoor_reset: Optional[Union[Temperature, str]] = None,
-        heat_differential: Optional[Temperature] = None,
-        hot_min_tank_temp: Optional[Temperature] = None,
-        hot_max_tank_temp: Optional[Temperature] = None,
-        cold_tank_outdoor_reset: Optional[Union[int, str]] = None,
-        cold_differential: Optional[Temperature] = None,
-        cold_min_tank_temp: Optional[Temperature] = None,
-        cold_max_tank_temp: Optional[Temperature] = None,
+        hot_tank_differential: Optional[Temperature] = None,
+        hot_tank_min_temp: Optional[Temperature] = None,
+        hot_tank_max_temp: Optional[Temperature] = None,
+        cold_tank_outdoor_reset: Optional[Union[Temperature, str]] = None,
+        cold_tank_differential: Optional[Temperature] = None,
+        cold_tank_min_temp: Optional[Temperature] = None,
+        cold_tank_max_temp: Optional[Temperature] = None,
         backup_time: Optional[int] = None,
         backup_temp: Optional[Temperature] = None,
         backup_differential: Optional[Temperature] = None,
@@ -332,14 +332,14 @@ class Sensorlinx:
             heat_cool_switch_delay (Optional[int]): Delay in seconds between switching from heat to cool (30-600).
             warm_weather_shutdown (Optional[Temperature or str]): when in heating mode shuts the heat pump off above this temperature (34 to 180F) or 'off' to disable.
             hot_tank_outdoor_reset (Optional[Union[Temperature, str]]): temperature for outdoor reset in °F (-40 to 127) or 'off' to disable.
-            heat_differential (Optional[Temperature]): The heat differential to set for the device.
-            hot_min_tank_temp (Optional[Temperature]): The minimum tank temperature for the hot tank (35°F to 200°F)
-            hot_max_tank_temp (Optional[Temperature]): The maximum tank temperature for the hot tank (35°F to 200°F)
-            cold_weather_shutdown (Optional[Temperature or str]): when in cooling mode shuts the heat pump off below this temperature, (32F to 119F) or 'off' to disable.
-            cold_tank_outdoor_reset (Optional[Union[int, str]]): Design temperature for outdoor reset in (0F to 119F) or 'off' to disable.
-            cold_differential (Optional[Temperature]): The cold differential to set for the device (2°F to 100°F)
-            cold_min_tank_temp (Optional[Temperature]): The minimum tank temperature for the cold tank (35°F to 200°F)
-            cold_max_tank_temp (Optional[Temperature]): The maximum tank temperature for the cold tank (35°F to 200°F)
+            hot_tank_differential (Optional[Temperature]): controlling how far above or below the target temperature a demand is triggered. (2-100F)
+            hot_tank_min_temp (Optional[Temperature]): The minimum tank temperature for the hot tank (35°F to 200°F)
+            hot_tank_max_temp (Optional[Temperature]): The maximum tank temperature for the hot tank (35°F to 200°F)
+            cold_weather_shutdown (Optional[Temperature or str]): when in cooling mode shuts the heat pump off below this temperature, (33F to 119F) or 'off' to disable.
+            cold_tank_outdoor_reset (Optional[Union[Temperature, str]]): Design temperature for outdoor reset in (0F to 119F) or 'off' to disable.
+            cold_tank_differential (Optional[Temperature]): The cold differential to set for the device (2°F to 100°F)
+            cold_tank_min_temp (Optional[Temperature]): The minimum tank temperature for the cold tank (35°F to 200°F)
+            cold_tank_max_temp (Optional[Temperature]): The maximum tank temperature for the cold tank (35°F to 200°F)
             backup_time (Optional[int]): The time in minutes to wait before switching to backup mode.
             backup_temp (Optional[Temperature]): The outdoor temperature at which the backup mode is activated (2F to 100F) or 'off' to disable.
             backup_differential (Optional[Temperature]): The backup differential temperature to set for the device or 'off' to disable.
@@ -487,35 +487,39 @@ class Sensorlinx:
                 _LOGGER.error("Hot tank outdoor reset must be a Temperature instance or 'off'.")
                 raise InvalidParameterError("Hot tank outdoor reset must be a Temperature instance or 'off'.")
             
-        if heat_differential is not None:
-            if isinstance(heat_differential, Temperature):
-                payload["htDif"] = round(heat_differential.to_fahrenheit())
+        if hot_tank_differential is not None:
+            if isinstance(hot_tank_differential, Temperature):
+                temp_f = hot_tank_differential.to_fahrenheit()
+                if not (2 <= temp_f <= 100):
+                    _LOGGER.error("Hot tank differential must be between 2°F and 100°F.")
+                    raise InvalidParameterError("Hot tank differential must be between 2°F and 100°F.")
+                payload["htDif"] = round(temp_f)
             else:
-                _LOGGER.error("heat_differential must be a Temperature instance.")
-                raise InvalidParameterError("heat_differential must be a Temperature instance.")
+                _LOGGER.error("Hot tank differential must be a Temperature instance.")
+                raise InvalidParameterError("Hot tank differential must be a Temperature instance.")
             
-        if hot_min_tank_temp is not None:
-            if isinstance(hot_min_tank_temp, Temperature):
-                temp_f = hot_min_tank_temp.to_fahrenheit()
-                if not (35 <= temp_f <= 200):
-                    _LOGGER.error("hot_min_tank_temp must be between 35°F and 200°F.")
-                    raise InvalidParameterError("hot_min_tank_temp must be between 35°F and 200°F.")
+        if hot_tank_min_temp is not None:
+            if isinstance(hot_tank_min_temp, Temperature):
+                temp_f = hot_tank_min_temp.to_fahrenheit()
+                if not (2 <= temp_f <= 180):
+                    _LOGGER.error("Minimum tank temperature for the hot tank must be between 2°F and 180°F.")
+                    raise InvalidParameterError("Minimum tank temperature for the hot tank must be between 2°F and 180°F.")
                 payload["dbt"] = round(temp_f)
             else:
-                _LOGGER.error("hot_min_tank_temp must be a Temperature instance.")
-                raise InvalidParameterError("hot_min_tank_temp must be a Temperature instance.")
+                _LOGGER.error("Minimum tank temperature for the hot tank must be a Temperature instance.")
+                raise InvalidParameterError("Minimum tank temperature for the hot tank must be a Temperature instance.")
             
-        if hot_max_tank_temp is not None:
-            if isinstance(hot_max_tank_temp, Temperature):
-                temp_f = hot_max_tank_temp.to_fahrenheit()
-                if not (35 <= temp_f <= 200):
-                    _LOGGER.error("hot_max_tank_temp must be between 35°F and 200°F.")
-                    raise InvalidParameterError("hot_max_tank_temp must be between 35°F and 200°F.")
+        if hot_tank_max_temp is not None:
+            if isinstance(hot_tank_max_temp, Temperature):
+                temp_f = hot_tank_max_temp.to_fahrenheit()
+                if not (2 <= temp_f <= 180):
+                    _LOGGER.error("Maximum tank temperature for the hot tank must be between 2°F and 180°F.")
+                    raise InvalidParameterError("Maximum tank temperature for the hot tank must be between 2°F and 180°F.")
                 payload["mbt"] = round(temp_f)
             else:
-                _LOGGER.error("hot_max_tank_temp must be a Temperature instance.")
-                raise InvalidParameterError("hot_max_tank_temp must be a Temperature instance.")
-        
+                _LOGGER.error("Maximum tank temperature for the hot tank must be a Temperature instance.")
+                raise InvalidParameterError("Maximum tank temperature for the hot tank must be a Temperature instance.")
+            
         ###############################################################################################    
         # Cold Tank parameters
         ###############################################################################################
@@ -524,51 +528,62 @@ class Sensorlinx:
             if isinstance(cold_weather_shutdown, str) and cold_weather_shutdown.lower() == "off":
                 payload["cwsd"] = 32
             elif isinstance(cold_weather_shutdown, Temperature):
-                payload["cwsd"] = round(cold_weather_shutdown.to_fahrenheit())
+                temp_f = cold_weather_shutdown.to_fahrenheit()
+                if not (33 <= temp_f <= 119):
+                    _LOGGER.error("Cold weather shutdown must be between 33°F and 119°F or 'off'.")
+                    raise InvalidParameterError("Cold weather shutdown must be between 33°F and 119°F or 'off'.")
+                payload["cwsd"] = round(temp_f)
             else:
-                raise InvalidParameterError("cold_weather_shutdown must be a Temperature or 'off'")            
+                _LOGGER.error("Cold weather shutdown must be a Temperature instance or 'off'.")
+                raise InvalidParameterError("Cold weather shutdown must be a Temperature instance or 'off'.")
             
         if cold_tank_outdoor_reset is not None:
             if isinstance(cold_tank_outdoor_reset, str) and cold_tank_outdoor_reset.lower() == "off":
                 payload["cdot"] = -41
-            elif isinstance(cold_tank_outdoor_reset, int) and 0 <= cold_tank_outdoor_reset <= 119:
-                payload["cdot"] = cold_tank_outdoor_reset
+            elif isinstance(cold_tank_outdoor_reset, Temperature):
+                temp_f = cold_tank_outdoor_reset.to_fahrenheit()
+                if not (0 <= temp_f <= 119):
+                    _LOGGER.error("Cold tank outdoor reset must be between 0°F and 119°F or 'off'.")
+                    raise InvalidParameterError("Cold tank outdoor reset must be between 0°F and 119°F or 'off'.")
+                payload["cdot"] = round(temp_f)
             else:
-                _LOGGER.error("cold_tank_outdoor_reset must be an integer between 0 and 119 or 'off'.")
-                raise InvalidParameterError("cold_tank_outdoor_reset must be an integer between 0 and 119 or 'off'.")
+                _LOGGER.error("Cold tank outdoor reset must be a Temperature instance or 'off'.")
+                raise InvalidParameterError("Cold tank outdoor reset must be a Temperature instance or 'off'.")
             
-        if cold_differential is not None:
-            if isinstance(cold_differential, Temperature):
-                temp_f = cold_differential.to_fahrenheit()
+        if cold_tank_differential is not None:
+            if isinstance(cold_tank_differential, Temperature):
+                temp_f = cold_tank_differential.to_fahrenheit()
                 if not (2 <= temp_f <= 100):
-                    _LOGGER.error("cold_differential must be between 2°F and 100°F.")
-                    raise InvalidParameterError("cold_differential must be between 2°F and 100°F.")
+                    _LOGGER.error("Cold tank differential must be between 2°F and 100°F.")
+                    raise InvalidParameterError("Cold tank differential must be between 2°F and 100°F.")
                 payload["clDif"] = round(temp_f)
             else:
-                _LOGGER.error("cold_differential must be a Temperature instance.")
-                raise InvalidParameterError("cold_differential must be a Temperature instance.")
+                _LOGGER.error("Cold tank differential must be a Temperature instance.")
+                raise InvalidParameterError("Cold tank differential must be a Temperature instance.")
             
-        if cold_min_tank_temp is not None:
-            if isinstance(cold_min_tank_temp, Temperature):
-                temp_f = cold_min_tank_temp.to_fahrenheit()
-                if not (35 <= temp_f <= 200):
-                    _LOGGER.error("cold_min_tank_temp must be between 35°F and 200°F.")
-                    raise InvalidParameterError("cold_min_tank_temp must be between 35°F and 200°F.")
+        
+            
+        if cold_tank_min_temp is not None:
+            if isinstance(cold_tank_min_temp, Temperature):
+                temp_f = cold_tank_min_temp.to_fahrenheit()
+                if not (2 <= temp_f <= 180):
+                    _LOGGER.error("Cold tank min temperature must be between 2°F and 180°F.")
+                    raise InvalidParameterError("Cold tank min temperature must be between 2°F and 180°F.")
                 payload["dst"] = round(temp_f)
             else:
-                _LOGGER.error("cold_min_tank_temp must be a Temperature instance.")
-                raise InvalidParameterError("cold_min_tank_temp must be a Temperature instance.")
+                _LOGGER.error("Cold tank min temperature must be a Temperature instance.")
+                raise InvalidParameterError("Cold tank min temperature must be a Temperature instance.")
             
-        if cold_max_tank_temp is not None:
-            if isinstance(cold_max_tank_temp, Temperature):
-                temp_f = cold_max_tank_temp.to_fahrenheit()
-                if not (35 <= temp_f <= 200):
-                    _LOGGER.error("cold_max_tank_temp must be between 35°F and 200°F.")
-                    raise InvalidParameterError("cold_max_tank_temp must be between 35°F and 200°F.")
+        if cold_tank_max_temp is not None:
+            if isinstance(cold_tank_max_temp, Temperature):
+                temp_f = cold_tank_max_temp.to_fahrenheit()
+                if not (2 <= temp_f <= 180):
+                    _LOGGER.error("Cold tank max temperature must be between 2°F and 180°F.")
+                    raise InvalidParameterError("Cold tank max temperature must be between 2°F and 180°F.")
                 payload["mst"] = round(temp_f)
             else:
-                _LOGGER.error("cold_max_tank_temp must be a Temperature instance.")
-                raise InvalidParameterError("cold_max_tank_temp must be a Temperature instance.")
+                _LOGGER.error("Cold tank max temperature must be a Temperature instance.")
+                raise InvalidParameterError("Cold tank max temperature must be a Temperature instance.")
             
         ###############################################################################################    
         # Domestic Hot Water Parameters
@@ -1012,7 +1027,7 @@ class SensorlinxDevice:
             self.building_id, self.device_id, hot_tank_outdoor_reset=value
         )
         
-    async def set_heat_differential(self, value: Temperature) -> None:
+    async def set_hot_tank_differential(self, value: Temperature) -> None:
         """
         Set the heat differential for the hot tank.
 
@@ -1029,15 +1044,39 @@ class SensorlinxDevice:
         """
 
         await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, heat_differential=value
+            self.building_id, self.device_id, hot_tank_differential=value
         )
         
-    async def set_hot_min_tank_temp(self, value: Temperature) -> None:
+    async def set_hot_tank_target_temp(self, value: Temperature) -> None:
+        """
+        Set the hot tank target temperature for heating.
+
+        Note:
+            This method is functionally identical to set_hot_tank_min_temp and uses the same parameter.
+            It is provided as a helper for clarity and code readability.
+
+        When a heat demand is present and the control is not in WWSD, the control will target this temperature for heating.
+        Allowed values: 2°F to 180°F. Default: 115°F.
+
+        Args:
+            value (Temperature): The target temperature as a Temperature object.
+
+        Raises:
+            InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.set_hot_tank_min_temp(value)
+        
+    async def set_hot_tank_min_temp(self, value: Temperature) -> None:
         """
         Set the minimum tank temperature for the hot tank.
 
         This setting is the bottom of the heat curve. The target will hit this temperature as the
-        Outdoor Temperature approaches the WWSD. Allowed values: 35°F to 200°F. Default: 80°F.
+        Outdoor Temperature approaches the WWSD. Allowed values: 2°F to 180°F. Default: 80°F.
+
+        Note:
+            This option is only used when hot tank outdoor reset is enabled.
 
         Args:
             value (Temperature): The minimum tank temperature as a Temperature object.
@@ -1048,16 +1087,19 @@ class SensorlinxDevice:
             RuntimeError: If the API call fails for other reasons.
         """
         await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, hot_min_tank_temp=value
+            self.building_id, self.device_id, hot_tank_min_temp=value
         )
         
-    async def set_hot_max_tank_temp(self, value: Temperature) -> None:
+    async def set_hot_tank_max_temp(self, value: Temperature) -> None:
         """
         Set the maximum tank temperature for the hot tank.
 
         This setting is the top of the heat curve. The target will hit this temperature as the
         Outdoor Temperature approaches the Design Outdoor Temperature.
-        Allowed values: 35°F to 200°F. Default: 115°F.
+        Allowed values: 2°F to 180°F. Default: 115°F.
+
+        Note:
+            This option is only used when hot tank outdoor reset is enabled.
 
         Args:
             value (Temperature): The maximum tank temperature as a Temperature object.
@@ -1069,7 +1111,7 @@ class SensorlinxDevice:
         """
 
         await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, hot_max_tank_temp=value
+            self.building_id, self.device_id, hot_tank_max_temp=value
         )
 
     #################################################################################################################################
@@ -1078,7 +1120,12 @@ class SensorlinxDevice:
 
     async def set_cold_weather_shutdown(self, value) -> None:
         """
-        Set the cold weather shutdown parameter for the device.
+        Set the Cold Weather Shutdown (CWSD) parameter for the device.
+
+        CWSD is used to set the outdoor temperature at which the ECO-0600 will enter Cold Weather Shutdown.
+        If the outdoor temperature drops below this value, the system (heat pumps) will be shut off.
+        Allowed values: "off" (to disable, sets to 32°F) or a Temperature between 33°F and 119°F (inclusive).
+        Default: 75°F.
 
         Args:
             value (Temperature or str): The value to set for cold weather shutdown (Temperature instance or 'off').
@@ -1092,7 +1139,7 @@ class SensorlinxDevice:
             self.building_id, self.device_id, cold_weather_shutdown=value
         )
         
-    async def set_cold_tank_outdoor_reset(self, value: Union[int, str]) -> None:
+    async def set_cold_tank_outdoor_reset(self, value: Union[Temperature, str]) -> None:
         """
         Set the Outdoor Reset (Design Outdoor Temperature) parameter for the cold tank.
 
@@ -1100,7 +1147,7 @@ class SensorlinxDevice:
         With this enabled, the Tank Temperature setting will be replaced by Min Tank and Max Tank Temperature settings for the cold tank.
 
         Args:
-            value (Union[int, str]): The design outdoor temperature in °F (0 to 119) or "off" to disable.
+            value (Union[Temperature, str]): The design outdoor temperature as a Temperature object (in °F or °C) or "off" to disable.
 
         Raises:
             InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
@@ -1111,12 +1158,12 @@ class SensorlinxDevice:
             self.building_id, self.device_id, cold_tank_outdoor_reset=value
         )
         
-    async def set_cold_differential(self, value: Temperature) -> None:
+    async def set_cold_tank_differential(self, value: Temperature) -> None:
         """
         Set the cold tank differential for the device.
 
         This temperature sets the desired cold tank differential. For example, a differential of 4°F will allow for 2 degrees above
-        and/or 2 degrees below the desired temperature before a demand is present.
+        and/or 2 degrees below the desired temperature before a demand is present. Default 8F
 
         Args:
             value (Temperature): The differential as a Temperature object.
@@ -1127,16 +1174,37 @@ class SensorlinxDevice:
             RuntimeError: If the API call fails for other reasons.
         """
         await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, cold_differential=value
+            self.building_id, self.device_id, cold_tank_differential=value
         )
         
-    async def set_cold_min_tank_temp(self, value: Temperature) -> None:
+    async def set_cold_tank_target_temp(self, value: Temperature) -> None:
+        """
+        Set the cold tank target temperature for cooling.
+
+        Note:
+            This method is functionally identical to set_cold_tank_min_temp and uses the same parameter.
+            It is provided as a helper for clarity and code readability.
+
+        When a cool demand is present and the control is not in CWSD, the control will target this temperature for cooling.
+        Allowed values: 2°F to 180°F. Default: 45°F.
+
+        Args:
+            value (Temperature): The target temperature as a Temperature object.
+
+        Raises:
+            InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.set_cold_tank_min_temp(value)
+        
+    async def set_cold_tank_min_temp(self, value: Temperature) -> None:
         """
         Set the minimum tank temperature for the cold tank.
 
         This setting is the bottom of the cooling curve. The target will hit this temperature as the
         Outdoor Temperature approaches the Outdoor Design Temperature.
-        Allowed values: 30°F to 200°F. Default: 45°F.
+        Allowed values: 2°F to 180°F. Default: 45°F.
 
         Args:
             value (Temperature): The minimum tank temperature as a Temperature object.
@@ -1147,16 +1215,16 @@ class SensorlinxDevice:
             RuntimeError: If the API call fails for other reasons.
         """
         await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, cold_min_tank_temp=value
+            self.building_id, self.device_id, cold_tank_min_temp=value
         )
         
-    async def set_cold_max_tank_temp(self, value: Temperature) -> None:
+    async def set_cold_tank_max_temp(self, value: Temperature) -> None:
         """
         Set the maximum tank temperature for the cold tank.
 
         This setting is the top of the cooling curve. The target will hit this temperature as the
         Outdoor Temperature approaches the Cold Weather Shutdown (CWSD).
-        Allowed values: 30°F to 200°F. Default: 60°F.
+        Allowed values: 2°F to 180°F. Default: 60°F.
 
         Args:
             value (Temperature): The maximum tank temperature as a Temperature object.
@@ -1167,7 +1235,7 @@ class SensorlinxDevice:
             RuntimeError: If the API call fails for other reasons.
         """
         await self.sensorlinx.set_device_parameter(
-            self.building_id, self.device_id, cold_max_tank_temp=value
+            self.building_id, self.device_id, cold_tank_max_temp=value
         )
         
     #################################################################################################################################
