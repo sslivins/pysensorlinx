@@ -26,7 +26,7 @@ async def test_live_login_and_user_profile():
         profile = await sensorlinx.get_profile()
         assert profile is not None, "Failed to fetch user profile"
         assert profile.get("user", {}).get("email") == username, "User email does not match"
-        pprint.pprint(profile)
+        #pprint.pprint(profile)
     except Exception as e:
         print(f"Test failed due to exception: {type(e).__name__}: {e}")
         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
@@ -128,7 +128,7 @@ async def test_live_get_specific_device():
         assert device is not None, "Failed to fetch devices"
         assert isinstance(device, dict), "Devices response is not a dict"
         assert device.get("syncCode") == device_id, "Device ID does not match"
-        pprint.pprint(device)
+        #pprint.pprint(device)
     except Exception as e:
         print(f"Test failed due to exception: {type(e).__name__}: {e}")
         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
@@ -421,7 +421,7 @@ async def test_live_get_all_temperatures():
                 assert -40 <= actual.value <= 140, f"{key} actual temperature {actual.value}F out of range"
             if target is not None:
                 assert -40 <= target.value <= 140, f"{key} target temperature {target.value}F out of range"
-        pprint.pprint(temperatures)
+        #pprint.pprint(temperatures)
     except Exception as e:
         print(f"Test failed due to exception: {type(e).__name__}: {e}")
         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
@@ -637,7 +637,7 @@ async def test_live_get_runtimes():
         assert isinstance(stages, list), "Stages should be a list"
         assert len(stages) == 2, f"Expected 2 stages, got {len(stages)}"
         assert backup is not None, "Backup should not be None"
-        pprint.pprint(runtimes)
+        #pprint.pprint(runtimes)
     except Exception as e:
         print(f"Test failed due to exception: {type(e).__name__}: {e}")
         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")

@@ -2,8 +2,12 @@ import pytest
 from unittest.mock import AsyncMock
 import datetime
 from pysensorlinx import Sensorlinx, SensorlinxDevice, Temperature
+from dotenv import load_dotenv
 
-@pytest.mark.asyncio
+# Load environment variables from .env file
+load_dotenv()
+
+@pytest.mark.get_params
 @pytest.mark.parametrize(
   "device_info, key, get_devices_side_effect, expected_result, expected_exception, expected_message",
   [
@@ -48,7 +52,7 @@ async def test_get_device_info_value_cases(device_info, key, get_devices_side_ef
     result = await device._get_device_info_value(key, call_device_info)
     assert result == expected_result
     
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_permanent_heat_demand_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -58,7 +62,7 @@ async def test_get_permanent_heat_demand_smoke():
     device._get_device_info_value.assert_awaited_once_with("permHD", device_info)
     assert result is True
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_permanent_cool_demand_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -68,7 +72,7 @@ async def test_get_permanent_cool_demand_smoke():
     device._get_device_info_value.assert_awaited_once_with("permCD", device_info)
     assert result is True
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_hvac_mode_priority_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -78,7 +82,7 @@ async def test_get_hvac_mode_priority_smoke():
     device._get_device_info_value.assert_awaited_once_with("prior", device_info)
     assert result == "auto"
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_weather_shutdown_lag_time_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -88,7 +92,7 @@ async def test_get_weather_shutdown_lag_time_smoke():
     device._get_device_info_value.assert_awaited_once_with("wwTime", device_info)
     assert result == 10
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_heat_cool_switch_delay_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -98,7 +102,7 @@ async def test_get_heat_cool_switch_delay_smoke():
     device._get_device_info_value.assert_awaited_once_with("hpSw", device_info)
     assert result == 60
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_wide_priority_differential_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -108,7 +112,7 @@ async def test_get_wide_priority_differential_smoke():
     device._get_device_info_value.assert_awaited_once_with("wPDif", device_info)
     assert result is False
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_number_of_stages_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -118,7 +122,7 @@ async def test_get_number_of_stages_smoke():
     device._get_device_info_value.assert_awaited_once_with("numStg", device_info)
     assert result == 2
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_two_stage_heat_pump_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -128,7 +132,7 @@ async def test_get_two_stage_heat_pump_smoke():
     device._get_device_info_value.assert_awaited_once_with("twoS", device_info)
     assert result is True
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_stage_on_lag_time_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -138,7 +142,7 @@ async def test_get_stage_on_lag_time_smoke():
     device._get_device_info_value.assert_awaited_once_with("lagT", device_info)
     assert result == 5
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_stage_off_lag_time_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -148,7 +152,7 @@ async def test_get_stage_off_lag_time_smoke():
     device._get_device_info_value.assert_awaited_once_with("lagOff", device_info)
     assert result == 3
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_rotate_cycles_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -158,7 +162,7 @@ async def test_get_rotate_cycles_smoke():
     device._get_device_info_value.assert_awaited_once_with("rotCy", device_info)
     assert result == 4
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_rotate_time_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -168,7 +172,7 @@ async def test_get_rotate_time_smoke():
     device._get_device_info_value.assert_awaited_once_with("rotTi", device_info)
     assert result == 12
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_off_staging_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -178,7 +182,7 @@ async def test_get_off_staging_smoke():
     device._get_device_info_value.assert_awaited_once_with("hpStg", device_info)
     assert result is True
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_warm_weather_shutdown_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -188,7 +192,7 @@ async def test_get_warm_weather_shutdown_smoke():
     device._get_device_info_value.assert_awaited_once_with("wwsd", device_info)
     assert result == 75
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_hot_tank_outdoor_reset_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -198,7 +202,7 @@ async def test_get_hot_tank_outdoor_reset_smoke():
     device._get_device_info_value.assert_awaited_once_with("dot", device_info)
     assert result == 60
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_hot_tank_differential_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -208,7 +212,7 @@ async def test_get_hot_tank_differential_smoke():
     device._get_device_info_value.assert_awaited_once_with("htDif", device_info)
     assert result == 10
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_hot_tank_min_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -218,7 +222,7 @@ async def test_get_hot_tank_min_temp_smoke():
     device._get_device_info_value.assert_awaited_once_with("dbt", device_info)
     assert result == 100
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_hot_tank_max_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -228,7 +232,7 @@ async def test_get_hot_tank_max_temp_smoke():
     device._get_device_info_value.assert_awaited_once_with("mbt", device_info)
     assert result == 150
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_cold_weather_shutdown_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -238,7 +242,7 @@ async def test_get_cold_weather_shutdown_smoke():
     device._get_device_info_value.assert_awaited_once_with("cwsd", device_info)
     assert result == 40
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_cold_tank_outdoor_reset_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -248,7 +252,7 @@ async def test_get_cold_tank_outdoor_reset_smoke():
     device._get_device_info_value.assert_awaited_once_with("cdot", device_info)
     assert result == 50
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_cold_tank_differential_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -258,7 +262,7 @@ async def test_get_cold_tank_differential_smoke():
     device._get_device_info_value.assert_awaited_once_with("clDif", device_info)
     assert result == 8
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_cold_tank_min_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -268,7 +272,7 @@ async def test_get_cold_tank_min_temp_smoke():
     device._get_device_info_value.assert_awaited_once_with("dst", device_info)
     assert result == 45
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_cold_tank_max_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -278,7 +282,7 @@ async def test_get_cold_tank_max_temp_smoke():
     device._get_device_info_value.assert_awaited_once_with("mst", device_info)
     assert result == 55
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_backup_lag_time_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -288,7 +292,7 @@ async def test_get_backup_lag_time_smoke():
     device._get_device_info_value.assert_awaited_once_with("bkLag", device_info)
     assert result == 20
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_backup_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -298,7 +302,7 @@ async def test_get_backup_temp_smoke():
     device._get_device_info_value.assert_awaited_once_with("bkTemp", device_info)
     assert result == 30
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_backup_differential_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -308,7 +312,7 @@ async def test_get_backup_differential_smoke():
     device._get_device_info_value.assert_awaited_once_with("bkDif", device_info)
     assert result == 5
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_backup_only_outdoor_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -318,7 +322,7 @@ async def test_get_backup_only_outdoor_temp_smoke():
     device._get_device_info_value.assert_awaited_once_with("bkOd", device_info)
     assert result == 10
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_backup_only_tank_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -328,7 +332,7 @@ async def test_get_backup_only_tank_temp_smoke():
     device._get_device_info_value.assert_awaited_once_with("bkTk", device_info)
     assert result == 120
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_firmware_version_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -339,7 +343,7 @@ async def test_get_firmware_version_smoke():
     device._get_device_info_value.assert_awaited_once_with("firmVer", device_info)
     assert result == 2.07
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_sync_code_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -349,7 +353,7 @@ async def test_get_sync_code_smoke():
     device._get_device_info_value.assert_awaited_once_with("syncCode", device_info)
     assert result == "ABC123"
     
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_device_pin_smoke():
   sensorlinx = Sensorlinx()
   device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -361,7 +365,7 @@ async def test_get_device_pin_smoke():
   assert result == "1234"
   
   
-@pytest.mark.asyncio
+@pytest.mark.get_params
 async def test_get_device_type_smoke():
   sensorlinx = Sensorlinx()
   device = SensorlinxDevice(sensorlinx, "building123", "device456")
@@ -371,7 +375,7 @@ async def test_get_device_type_smoke():
   device._get_device_info_value.assert_awaited_once_with("deviceType", device_info)
   assert result == "ECO"
 
-@pytest.mark.asyncio
+@pytest.mark.get_params
 @pytest.mark.parametrize(
     "device_info, get_devices_side_effect, expected_result, expected_exception, expected_message",
     [
@@ -445,7 +449,7 @@ async def test_get_temperatures_cases(device_info, get_devices_side_effect, expe
                 else:
                     assert result[k][subk] == expected_result[k][subk]
                     
-@pytest.mark.asyncio
+@pytest.mark.get_params
 @pytest.mark.parametrize(
     "device_info, get_devices_side_effect, expected_result, expected_exception, expected_message",
     [

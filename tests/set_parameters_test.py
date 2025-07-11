@@ -26,7 +26,7 @@ def sensorlinx_device_with_patch():
 # Set HVAC mode priority tests
 ###################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("mode,expected_json", [
   ("heat", {"prior": 0}),
   ("cool", {"prior": 1}),
@@ -41,7 +41,7 @@ async def test_set_hvac_mode_priority(sensorlinx_device_with_patch, mode, expect
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected_json
     
-@pytest.mark.asyncio
+@pytest.mark.set_params
 async def test_set_hvac_mode_priority_invalid_value(sensorlinx_device_with_patch):
     sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
@@ -54,7 +54,7 @@ async def test_set_hvac_mode_priority_invalid_value(sensorlinx_device_with_patch
 # Permanent heating demand tests
 ##################################################################################################   
  
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (True, {"permHD": 1}),
   (False, {"permHD": 0}),
@@ -73,7 +73,7 @@ async def test_set_permanent_hd(sensorlinx_device_with_patch, value, expected):
 # Permanent cooling demand tests
 ##################################################################################################  
   
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (True, {"permCD": 1}),
   (False, {"permCD": 0}),
@@ -92,7 +92,7 @@ async def test_set_permanent_cd(sensorlinx_device_with_patch, value, expected):
 # Weather shutdown lag time tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (120, {"wwTime": 120}),
   (0, {"wwTime": 0}),
@@ -107,7 +107,7 @@ async def test_set_weather_shutdown_lag_time_valid(sensorlinx_device_with_patch,
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_value", [-1, 241, 1000, -100])
 async def test_set_weather_shutdown_lag_time_invalid_value(sensorlinx_device_with_patch, invalid_value):
     sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -120,7 +120,7 @@ async def test_set_weather_shutdown_lag_time_invalid_value(sensorlinx_device_wit
 # Heat/Cool Switch Delay tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("valid_value", [30, 60, 300, 600])
 async def test_set_heat_cool_switch_delay_valid(sensorlinx_device_with_patch, valid_value):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -131,7 +131,7 @@ async def test_set_heat_cool_switch_delay_valid(sensorlinx_device_with_patch, va
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"hpSw": valid_value}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_value", [0, 29, 601, 1000, -10])
 async def test_set_heat_cool_switch_delay_invalid(sensorlinx_device_with_patch, invalid_value):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -145,7 +145,7 @@ async def test_set_heat_cool_switch_delay_invalid(sensorlinx_device_with_patch, 
 # Wide priority differential tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (True, {"wPDif": 1}),
   (False, {"wPDif": 0}),
@@ -163,7 +163,7 @@ async def test_set_wide_priority_differential(sensorlinx_device_with_patch, valu
 # Number of stages tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("num_stages", [1, 2, 3, 4])
 async def test_set_number_of_stages_valid(sensorlinx_device_with_patch, num_stages):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -174,7 +174,7 @@ async def test_set_number_of_stages_valid(sensorlinx_device_with_patch, num_stag
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"numStg": num_stages}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_value", [0, 5, -1, 100])
 async def test_set_number_of_stages_invalid(sensorlinx_device_with_patch, invalid_value):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -187,7 +187,7 @@ async def test_set_number_of_stages_invalid(sensorlinx_device_with_patch, invali
 # Two stage heat pump tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (True, {"twoS": 1}),
   (False, {"twoS": 0}),
@@ -205,7 +205,7 @@ async def test_set_two_stage_heat_pump(sensorlinx_device_with_patch, value, expe
 # Stage On Lag Time tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("valid_value", [1, 50, 120, 240])
 async def test_set_stage_on_lag_time_valid(sensorlinx_device_with_patch, valid_value):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -216,7 +216,7 @@ async def test_set_stage_on_lag_time_valid(sensorlinx_device_with_patch, valid_v
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"lagT": valid_value}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_value", [0, -1, 241, 1000])
 async def test_set_stage_on_lag_time_invalid(sensorlinx_device_with_patch, invalid_value):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -229,7 +229,7 @@ async def test_set_stage_on_lag_time_invalid(sensorlinx_device_with_patch, inval
 # Stage Off Lag Time tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("valid_value", [1, 120, 240])
 async def test_set_stage_off_lag_time_valid(sensorlinx_device_with_patch, valid_value):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -240,7 +240,7 @@ async def test_set_stage_off_lag_time_valid(sensorlinx_device_with_patch, valid_
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"lagOff": valid_value}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_value", [0, -5, 241, 1000])
 async def test_set_stage_off_lag_time_invalid(sensorlinx_device_with_patch, invalid_value):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -254,7 +254,7 @@ async def test_set_stage_off_lag_time_invalid(sensorlinx_device_with_patch, inva
 # Rotate Cycles tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (1, {"rotCy": 1}),
   (120, {"rotCy": 120}),
@@ -272,7 +272,7 @@ async def test_set_rotate_cycles_valid(sensorlinx_device_with_patch, value, expe
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_value", [0, -1, 241, 1000, "invalid", "on", "OFFF", "of", "Offf"])
 async def test_set_rotate_cycles_invalid(sensorlinx_device_with_patch, invalid_value):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -286,7 +286,7 @@ async def test_set_rotate_cycles_invalid(sensorlinx_device_with_patch, invalid_v
 # Rotate Time tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (1, {"rotTi": 1}),
   (120, {"rotTi": 120}),
@@ -304,7 +304,7 @@ async def test_set_rotate_time_valid(sensorlinx_device_with_patch, value, expect
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_value", [0, -1, 241, 1000, "invalid", "on", "OFFF", "of", "Offf"])
 async def test_set_rotate_time_invalid(sensorlinx_device_with_patch, invalid_value):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -318,7 +318,7 @@ async def test_set_rotate_time_invalid(sensorlinx_device_with_patch, invalid_val
 # Off Staging tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (True, {"hpStg": 1}),
   (False, {"hpStg": 0}),
@@ -336,7 +336,7 @@ async def test_set_off_staging(sensorlinx_device_with_patch, value, expected):
 # Warm Weather Shutdown tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (Temperature(34, "F"), {"wwsd": 34}),
   (Temperature(100, "F"), {"wwsd": 100}),
@@ -354,7 +354,7 @@ async def test_set_warm_weather_shutdown_valid(sensorlinx_device_with_patch, val
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (1.12, 34),    # 1°C ≈ 33.8°F, should round to 34
   (37.8, 100),# 37.8°C ≈ 100°F
@@ -370,7 +370,7 @@ async def test_set_warm_weather_shutdown_celsius(sensorlinx_device_with_patch, c
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"wwsd": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   ("K"),
   ("celsius"),
@@ -386,7 +386,7 @@ async def test_set_warm_weather_shutdown_invalid_temperature_unit(sensorlinx_dev
         await device.set_warm_weather_shutdown(temp)
     assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
     
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Invalid type for warm weather shutdown. Must be a Temperature or 'off'."),
   (45.6, "Invalid type for warm weather shutdown. Must be a Temperature or 'off'."),
@@ -408,7 +408,7 @@ async def test_set_warm_weather_shutdown_invalid_type(sensorlinx_device_with_pat
 # Hot Tank Outdoor Reset tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (Temperature(-40, "F"), {"dot": -40}),
   (Temperature(0, "F"), {"dot": 0}),
@@ -426,7 +426,7 @@ async def test_hot_tank_outdoor_reset_valid(sensorlinx_device_with_patch, value,
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (-40, -40),    # -40°C == -40°F
   (0, 32),       # 0°C == 32°F
@@ -442,7 +442,7 @@ async def test_hot_tank_outdoor_reset_celsius(sensorlinx_device_with_patch, cels
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"dot": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_value", [
   -41, 128, 200, -100, 1000
 ])
@@ -454,7 +454,7 @@ async def test_hot_tank_outdoor_reset_invalid_fahrenheit(sensorlinx_device_with_
     await device.set_hot_tank_outdoor_reset(temp)
   assert str(excinfo.value) == "Hot tank outdoor reset must be between -40°F and 127°F or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_celsius", [
   -41, 54, 100, -100, 1000
 ])
@@ -466,7 +466,7 @@ async def test_hot_tank_outdoor_reset_invalid_celsius(sensorlinx_device_with_pat
     await device.set_hot_tank_outdoor_reset(temp)
   assert str(excinfo.value) == "Hot tank outdoor reset must be between -40°F and 127°F or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_str", [
   "invalid", "on", "OFFF", "of", "Offf"
 ])
@@ -477,7 +477,7 @@ async def test_hot_tank_outdoor_reset_invalid_string(sensorlinx_device_with_patc
     await device.set_hot_tank_outdoor_reset(invalid_str)
   assert str(excinfo.value) == "Hot tank outdoor reset must be a Temperature instance or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   ("K"),
   ("celsius"),
@@ -493,7 +493,7 @@ async def test_hot_tank_outdoor_reset_invalid_temperature_unit(sensorlinx_device
     await device.set_hot_tank_outdoor_reset(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
   
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Hot tank outdoor reset must be a Temperature instance or 'off'."),
   (45.6, "Hot tank outdoor reset must be a Temperature instance or 'off'."),
@@ -514,7 +514,7 @@ async def test_set_hot_tank_outdoor_reset_invalid_type(sensorlinx_device_with_pa
 # Hot Tank Differential tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("fahrenheit,expected_json", [
   (2, {"htDif": 2}),
   (50, {"htDif": 50}),
@@ -530,7 +530,7 @@ async def test_set_hot_tank_differential_valid_fahrenheit(sensorlinx_device_with
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected_json
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (1.1, 34),   # 1.1°C ≈ 34°F (rounded)
   (10, 50),    # 10°C ≈ 50°F
@@ -546,7 +546,7 @@ async def test_set_hot_tank_differential_valid_celsius(sensorlinx_device_with_pa
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"htDif": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 101, 200, -10])
 async def test_set_hot_tank_differential_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -556,7 +556,7 @@ async def test_set_hot_tank_differential_invalid_fahrenheit(sensorlinx_device_wi
     await device.set_hot_tank_differential(temp)
   assert str(excinfo.value) == "Hot tank differential must be between 2°F and 100°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, -17, 38, 100, 1000])
 async def test_set_hot_tank_differential_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -566,7 +566,7 @@ async def test_set_hot_tank_differential_invalid_celsius(sensorlinx_device_with_
     await device.set_hot_tank_differential(temp)
   assert str(excinfo.value) == "Hot tank differential must be between 2°F and 100°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -578,7 +578,7 @@ async def test_set_hot_tank_differential_invalid_unit(sensorlinx_device_with_pat
     await device.set_hot_tank_differential(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
   
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Hot tank differential must be a Temperature instance."),
   (45.6, "Hot tank differential must be a Temperature instance."),
@@ -601,7 +601,7 @@ async def test_set_hot_tank_differential_non_temperature_type(sensorlinx_device_
 # Hot Tank Minimum Temperature tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("fahrenheit,expected_json", [
   (2, {"dbt": 2}),
   (32, {"dbt": 32}),
@@ -618,7 +618,7 @@ async def test_set_hot_tank_min_temp_valid_fahrenheit(sensorlinx_device_with_pat
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected_json
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (1.1, 34),    # 1.1°C ≈ 34°F (rounded)
   (37.8, 100),  # 37.8°C ≈ 100°F
@@ -634,7 +634,7 @@ async def test_set_hot_tank_min_temp_valid_celsius(sensorlinx_device_with_patch,
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"dbt": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 181, 200, -10])
 async def test_set_hot_tank_min_temp_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -644,7 +644,7 @@ async def test_set_hot_tank_min_temp_invalid_fahrenheit(sensorlinx_device_with_p
     await device.set_hot_tank_min_temp(temp)
   assert str(excinfo.value) == "Minimum tank temperature for the hot tank must be between 2°F and 180°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, -17, 82.3, 100, 1000])
 async def test_set_hot_tank_min_temp_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -654,7 +654,7 @@ async def test_set_hot_tank_min_temp_invalid_celsius(sensorlinx_device_with_patc
     await device.set_hot_tank_min_temp(temp)
   assert str(excinfo.value) == "Minimum tank temperature for the hot tank must be between 2°F and 180°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -666,7 +666,7 @@ async def test_set_hot_tank_min_temp_invalid_unit(sensorlinx_device_with_patch, 
     await device.set_hot_tank_min_temp(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
   
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Minimum tank temperature for the hot tank must be a Temperature instance."),
   (45.6, "Minimum tank temperature for the hot tank must be a Temperature instance."),
@@ -689,7 +689,7 @@ async def test_set_hot_tank_min_temp_non_temperature_type(sensorlinx_device_with
 # Hot Tank Maximum Temperature tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("fahrenheit,expected_json", [
   (2, {"mbt": 2}),
   (32, {"mbt": 32}),
@@ -706,7 +706,7 @@ async def test_set_hot_tank_max_temp_valid_fahrenheit(sensorlinx_device_with_pat
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected_json
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (1.1, 34),    # 1.1°C ≈ 34°F (rounded)
   (37.8, 100),  # 37.8°C ≈ 100°F
@@ -722,7 +722,7 @@ async def test_set_hot_tank_max_temp_valid_celsius(sensorlinx_device_with_patch,
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"mbt": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 181, 200, -10])
 async def test_set_hot_tank_max_temp_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -732,7 +732,7 @@ async def test_set_hot_tank_max_temp_invalid_fahrenheit(sensorlinx_device_with_p
     await device.set_hot_tank_max_temp(temp)
   assert str(excinfo.value) == "Maximum tank temperature for the hot tank must be between 2°F and 180°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, -17, 82.3, 100, 1000])
 async def test_set_hot_tank_max_temp_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -742,7 +742,7 @@ async def test_set_hot_tank_max_temp_invalid_celsius(sensorlinx_device_with_patc
     await device.set_hot_tank_max_temp(temp)
   assert str(excinfo.value) == "Maximum tank temperature for the hot tank must be between 2°F and 180°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -755,7 +755,7 @@ async def test_set_hot_tank_max_temp_invalid_unit(sensorlinx_device_with_patch, 
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
   
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Maximum tank temperature for the hot tank must be a Temperature instance."),
   (45.6, "Maximum tank temperature for the hot tank must be a Temperature instance."),
@@ -779,7 +779,7 @@ async def test_set_hot_tank_max_temp_non_temperature_type(sensorlinx_device_with
 # Cold Weather Shutdown tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (Temperature(33, "F"), {"cwsd": 33}),
   (Temperature(119, "F"), {"cwsd": 119}),
@@ -797,7 +797,7 @@ async def test_set_cold_weather_shutdown_valid(sensorlinx_device_with_patch, val
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (0.6, 33),    # 0.6°C ≈ 33°F
   (48.3, 119),  # 48.3°C ≈ 119°F
@@ -813,7 +813,7 @@ async def test_set_cold_weather_shutdown_celsius(sensorlinx_device_with_patch, c
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"cwsd": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [32, 120, 0, -10, 200])
 async def test_set_cold_weather_shutdown_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -823,7 +823,7 @@ async def test_set_cold_weather_shutdown_invalid_fahrenheit(sensorlinx_device_wi
     await device.set_cold_weather_shutdown(temp)
   assert str(excinfo.value) == "Cold weather shutdown must be between 33°F and 119°F or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, 0, 48.4, 100, 1000])
 async def test_set_cold_weather_shutdown_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -833,7 +833,7 @@ async def test_set_cold_weather_shutdown_invalid_celsius(sensorlinx_device_with_
     await device.set_cold_weather_shutdown(temp)
   assert str(excinfo.value) == "Cold weather shutdown must be between 33°F and 119°F or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_str", [
   "invalid", "on", "OFFF", "of", "Offf"
 ])
@@ -844,7 +844,7 @@ async def test_set_cold_weather_shutdown_invalid_string(sensorlinx_device_with_p
     await device.set_cold_weather_shutdown(invalid_str)
   assert str(excinfo.value) == "Cold weather shutdown must be a Temperature instance or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -856,7 +856,7 @@ async def test_set_cold_weather_shutdown_invalid_unit(sensorlinx_device_with_pat
     await device.set_cold_weather_shutdown(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
   
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Cold weather shutdown must be a Temperature instance or 'off'."),
   (45.6, "Cold weather shutdown must be a Temperature instance or 'off'."),
@@ -877,7 +877,7 @@ async def test_set_cold_weather_shutdown_invalid_type(sensorlinx_device_with_pat
 # Cold Tank Outdoor Reset tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (Temperature(0, "F"), {"cdot": 0}),
   (Temperature(119, "F"), {"cdot": 119}),
@@ -895,7 +895,7 @@ async def test_set_cold_tank_outdoor_reset_valid(sensorlinx_device_with_patch, v
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (0, 32),      # 0°C == 32°F
   (10, 50),     # 10°C == 50°F
@@ -911,7 +911,7 @@ async def test_set_cold_tank_outdoor_reset_celsius(sensorlinx_device_with_patch,
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"cdot": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [-1, 120, 200, -100, 1000])
 async def test_set_cold_tank_outdoor_reset_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -921,7 +921,7 @@ async def test_set_cold_tank_outdoor_reset_invalid_fahrenheit(sensorlinx_device_
     await device.set_cold_tank_outdoor_reset(temp)
   assert str(excinfo.value) == "Cold tank outdoor reset must be between 0°F and 119°F or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, -18, 48.4, 100, 1000])
 async def test_set_cold_tank_outdoor_reset_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -931,7 +931,7 @@ async def test_set_cold_tank_outdoor_reset_invalid_celsius(sensorlinx_device_wit
     await device.set_cold_tank_outdoor_reset(temp)
   assert str(excinfo.value) == "Cold tank outdoor reset must be between 0°F and 119°F or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_str", [
   "invalid", "on", "OFFF", "of", "Offf"
 ])
@@ -942,7 +942,7 @@ async def test_set_cold_tank_outdoor_reset_invalid_string(sensorlinx_device_with
     await device.set_cold_tank_outdoor_reset(invalid_str)
   assert str(excinfo.value) == "Cold tank outdoor reset must be a Temperature instance or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -954,7 +954,7 @@ async def test_set_cold_tank_outdoor_reset_invalid_unit(sensorlinx_device_with_p
     await device.set_cold_tank_outdoor_reset(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Cold tank outdoor reset must be a Temperature instance or 'off'."),
   (45.6, "Cold tank outdoor reset must be a Temperature instance or 'off'."),
@@ -976,7 +976,7 @@ async def test_set_cold_tank_outdoor_reset_invalid_type(sensorlinx_device_with_p
 # Cold Tank Differential tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("fahrenheit,expected_json", [
   (2, {"clDif": 2}),
   (50, {"clDif": 50}),
@@ -992,7 +992,7 @@ async def test_set_cold_tank_differential_valid_fahrenheit(sensorlinx_device_wit
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected_json
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (1.1, 34),    # 1.1°C ≈ 34°F (rounded)
   (10, 50),     # 10°C ≈ 50°F
@@ -1008,7 +1008,7 @@ async def test_set_cold_tank_differential_valid_celsius(sensorlinx_device_with_p
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"clDif": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 101, 200, -10])
 async def test_set_cold_tank_differential_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1018,7 +1018,7 @@ async def test_set_cold_tank_differential_invalid_fahrenheit(sensorlinx_device_w
     await device.set_cold_tank_differential(temp)
   assert str(excinfo.value) == "Cold tank differential must be between 2°F and 100°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, -17, 38, 100, 1000])
 async def test_set_cold_tank_differential_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1028,7 +1028,7 @@ async def test_set_cold_tank_differential_invalid_celsius(sensorlinx_device_with
     await device.set_cold_tank_differential(temp)
   assert str(excinfo.value) == "Cold tank differential must be between 2°F and 100°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -1040,7 +1040,7 @@ async def test_set_cold_tank_differential_invalid_unit(sensorlinx_device_with_pa
     await device.set_cold_tank_differential(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Cold tank differential must be a Temperature instance."),
   (45.6, "Cold tank differential must be a Temperature instance."),
@@ -1064,7 +1064,7 @@ async def test_set_cold_tank_differential_non_temperature_type(sensorlinx_device
 # Cold Tank Minimum Temperature tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("fahrenheit,expected_json", [
   (2, {"dst": 2}),
   (32, {"dst": 32}),
@@ -1081,7 +1081,7 @@ async def test_set_cold_tank_min_temp_valid_fahrenheit(sensorlinx_device_with_pa
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected_json
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (1.1, 34),    # 1.1°C ≈ 34°F (rounded)
   (37.8, 100),  # 37.8°C ≈ 100°F
@@ -1097,7 +1097,7 @@ async def test_set_cold_tank_min_temp_valid_celsius(sensorlinx_device_with_patch
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"dst": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 181, 200, -10])
 async def test_set_cold_tank_min_temp_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1107,7 +1107,7 @@ async def test_set_cold_tank_min_temp_invalid_fahrenheit(sensorlinx_device_with_
     await device.set_cold_tank_min_temp(temp)
   assert str(excinfo.value) == "Cold tank min temperature must be between 2°F and 180°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, -17, 82.3, 100, 1000])
 async def test_set_cold_tank_min_temp_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1117,7 +1117,7 @@ async def test_set_cold_tank_min_temp_invalid_celsius(sensorlinx_device_with_pat
     await device.set_cold_tank_min_temp(temp)
   assert str(excinfo.value) == "Cold tank min temperature must be between 2°F and 180°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -1129,7 +1129,7 @@ async def test_set_cold_tank_min_temp_invalid_unit(sensorlinx_device_with_patch,
     await device.set_cold_tank_min_temp(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Cold tank min temperature must be a Temperature instance."),
   (45.6, "Cold tank min temperature must be a Temperature instance."),
@@ -1153,7 +1153,7 @@ async def test_set_cold_tank_min_temp_non_temperature_type(sensorlinx_device_wit
 # Cold Tank Maximum Temperature tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("fahrenheit,expected_json", [
   (2, {"mst": 2}),
   (32, {"mst": 32}),
@@ -1170,7 +1170,7 @@ async def test_set_cold_tank_max_temp_valid_fahrenheit(sensorlinx_device_with_pa
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected_json
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (1.1, 34),    # 1.1°C ≈ 34°F (rounded)
   (37.8, 100),  # 37.8°C ≈ 100°F
@@ -1186,7 +1186,7 @@ async def test_set_cold_tank_max_temp_valid_celsius(sensorlinx_device_with_patch
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"mst": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 181, 200, -10])
 async def test_set_cold_tank_max_temp_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1196,7 +1196,7 @@ async def test_set_cold_tank_max_temp_invalid_fahrenheit(sensorlinx_device_with_
     await device.set_cold_tank_max_temp(temp)
   assert str(excinfo.value) == "Cold tank max temperature must be between 2°F and 180°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, -17, 82.3, 100, 1000])
 async def test_set_cold_tank_max_temp_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1206,7 +1206,7 @@ async def test_set_cold_tank_max_temp_invalid_celsius(sensorlinx_device_with_pat
     await device.set_cold_tank_max_temp(temp)
   assert str(excinfo.value) == "Cold tank max temperature must be between 2°F and 180°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -1218,7 +1218,7 @@ async def test_set_cold_tank_max_temp_invalid_unit(sensorlinx_device_with_patch,
     await device.set_cold_tank_max_temp(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
   
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Cold tank max temperature must be a Temperature instance."),
   (45.6, "Cold tank max temperature must be a Temperature instance."),
@@ -1242,7 +1242,7 @@ async def test_set_cold_tank_max_temp_non_temperature_type(sensorlinx_device_wit
 # Backup Lag Time tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (1, {"bkLag": 1}),
   (120, {"bkLag": 120}),
@@ -1260,7 +1260,7 @@ async def test_set_backup_lag_time_valid(sensorlinx_device_with_patch, value, ex
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_value", [
   0, -1, 241, 1000,
   "invalid", "on", "OFFF", "of", "Offf"
@@ -1272,7 +1272,7 @@ async def test_set_backup_lag_time_invalid(sensorlinx_device_with_patch, invalid
     await device.set_backup_lag_time(invalid_value)
   assert str(excinfo.value) == "Backup lag time must be an integer between 1 and 240 or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_int", [
   0, -1, 241, 1000
 ])
@@ -1283,7 +1283,7 @@ async def test_set_backup_lag_time_invalid_int(sensorlinx_device_with_patch, inv
     await device.set_backup_lag_time(invalid_int)
   assert str(excinfo.value) == "Backup lag time must be an integer between 1 and 240 or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_type,expected_error", [
   (12.5, "Backup lag time must be an integer between 1 and 240 or 'off'."),
   (True, "Backup lag time must be an integer between 1 and 240 or 'off'."),
@@ -1303,7 +1303,7 @@ async def test_set_backup_lag_time_invalid_type(sensorlinx_device_with_patch, in
 # Backup Temperature tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (Temperature(2, "F"), {"bkTemp": 2}),
   (Temperature(50, "F"), {"bkTemp": 50}),
@@ -1321,7 +1321,7 @@ async def test_set_backup_temp_valid(sensorlinx_device_with_patch, value, expect
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (1.1, 34),    # 1.1°C ≈ 34°F (rounded)
   (10, 50),     # 10°C ≈ 50°F
@@ -1337,7 +1337,7 @@ async def test_set_backup_temp_valid_celsius(sensorlinx_device_with_patch, celsi
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"bkTemp": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 101, 200, -10])
 async def test_set_backup_temp_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1347,7 +1347,7 @@ async def test_set_backup_temp_invalid_fahrenheit(sensorlinx_device_with_patch, 
     await device.set_backup_temp(temp)
   assert str(excinfo.value) == "Backup temp must be between 2°F and 100°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, -17, 38, 100, 1000])
 async def test_set_backup_temp_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1357,7 +1357,7 @@ async def test_set_backup_temp_invalid_celsius(sensorlinx_device_with_patch, inv
     await device.set_backup_temp(temp)
   assert str(excinfo.value) == "Backup temp must be between 2°F and 100°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -1369,7 +1369,7 @@ async def test_set_backup_temp_invalid_unit(sensorlinx_device_with_patch, invali
     await device.set_backup_temp(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Backup temp must be a Temperature instance or 'off'."),
   (45.6, "Backup temp must be a Temperature instance or 'off'."),
@@ -1390,7 +1390,7 @@ async def test_set_backup_temp_invalid_type(sensorlinx_device_with_patch, invali
 # Backup Differential tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (Temperature(2, "F"), {"bkDif": 2}),
   (Temperature(50, "F"), {"bkDif": 50}),
@@ -1408,7 +1408,7 @@ async def test_set_backup_differential_valid(sensorlinx_device_with_patch, value
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (1.1, 34),    # 1.1°C ≈ 34°F (rounded)
   (10, 50),     # 10°C ≈ 50°F
@@ -1424,7 +1424,7 @@ async def test_set_backup_differential_valid_celsius(sensorlinx_device_with_patc
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"bkDif": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 101, 200, -10])
 async def test_set_backup_differential_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1434,7 +1434,7 @@ async def test_set_backup_differential_invalid_fahrenheit(sensorlinx_device_with
     await device.set_backup_differential(temp)
   assert str(excinfo.value) == "Backup differential must be between 2°F and 100°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, -17, 38, 100, 1000])
 async def test_set_backup_differential_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1444,7 +1444,7 @@ async def test_set_backup_differential_invalid_celsius(sensorlinx_device_with_pa
     await device.set_backup_differential(temp)
   assert str(excinfo.value) == "Backup differential must be between 2°F and 100°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -1456,7 +1456,7 @@ async def test_set_backup_differential_invalid_unit(sensorlinx_device_with_patch
     await device.set_backup_differential(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Backup differential must be a Temperature instance or 'off'."),
   (45.6, "Backup differential must be a Temperature instance or 'off'."),
@@ -1477,7 +1477,7 @@ async def test_set_backup_differential_invalid_type(sensorlinx_device_with_patch
 # Backup Only Outdoor Temperature tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (Temperature(2, "F"), {"bkOd": 2}),
   (Temperature(50, "F"), {"bkOd": 50}),
@@ -1495,7 +1495,7 @@ async def test_set_backup_only_outdoor_temp_valid(sensorlinx_device_with_patch, 
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (1.1, 34),    # 1.1°C ≈ 34°F (rounded)
   (10, 50),     # 10°C ≈ 50°F
@@ -1511,7 +1511,7 @@ async def test_set_backup_only_outdoor_temp_valid_celsius(sensorlinx_device_with
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"bkOd": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 101, 200, -10])
 async def test_set_backup_only_outdoor_temp_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1521,7 +1521,7 @@ async def test_set_backup_only_outdoor_temp_invalid_fahrenheit(sensorlinx_device
     await device.set_backup_only_outdoor_temp(temp)
   assert str(excinfo.value) == "Backup only outdoor temperature must be between 2°F and 100°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, -17, 38, 100, 1000])
 async def test_set_backup_only_outdoor_temp_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1531,7 +1531,7 @@ async def test_set_backup_only_outdoor_temp_invalid_celsius(sensorlinx_device_wi
     await device.set_backup_only_outdoor_temp(temp)
   assert str(excinfo.value) == "Backup only outdoor temperature must be between 2°F and 100°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -1543,7 +1543,7 @@ async def test_set_backup_only_outdoor_temp_invalid_unit(sensorlinx_device_with_
     await device.set_backup_only_outdoor_temp(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Backup only outdoor temperature must be a Temperature instance or 'off'."),
   (45.6, "Backup only outdoor temperature must be a Temperature instance or 'off'."),
@@ -1565,7 +1565,7 @@ async def test_set_backup_only_outdoor_temp_invalid_type(sensorlinx_device_with_
 # Backup Only Tank Temperature tests
 ##################################################################################################
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
   (Temperature(33, "F"), {"bkTk": 33}),
   (Temperature(100, "F"), {"bkTk": 100}),
@@ -1583,7 +1583,7 @@ async def test_set_backup_only_tank_temp_valid(sensorlinx_device_with_patch, val
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == expected
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
   (0.6, 33),    # 0.6°C ≈ 33°F
   (37.8, 100),  # 37.8°C ≈ 100°F
@@ -1599,7 +1599,7 @@ async def test_set_backup_only_tank_temp_valid_celsius(sensorlinx_device_with_pa
   _, kwargs = sensorlinx._session.patch.call_args
   assert kwargs["json"] == {"bkTk": expected_f}
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [32, 201, 0, -10, 300])
 async def test_set_backup_only_tank_temp_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1609,7 +1609,7 @@ async def test_set_backup_only_tank_temp_invalid_fahrenheit(sensorlinx_device_wi
     await device.set_backup_only_tank_temp(temp)
   assert str(excinfo.value) == "Backup only tank temperature must be between 33°F and 200°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_c", [-100, 0, 93.4, 100, 1000])
 async def test_set_backup_only_tank_temp_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1619,7 +1619,7 @@ async def test_set_backup_only_tank_temp_invalid_celsius(sensorlinx_device_with_
     await device.set_backup_only_tank_temp(temp)
   assert str(excinfo.value) == "Backup only tank temperature must be between 33°F and 200°F."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_str", [
   "invalid", "on", "OFFF", "of", "Offf"
 ])
@@ -1630,7 +1630,7 @@ async def test_set_backup_only_tank_temp_invalid_string(sensorlinx_device_with_p
     await device.set_backup_only_tank_temp(invalid_str)
   assert str(excinfo.value) == "Backup only tank temperature must be a Temperature instance or 'off'."
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_unit", [
   "K", "celsius", "farenheit", "", None
 ])
@@ -1642,7 +1642,7 @@ async def test_set_backup_only_tank_temp_invalid_unit(sensorlinx_device_with_pat
     await device.set_backup_only_tank_temp(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
 
-@pytest.mark.asyncio
+@pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
   (123, "Backup only tank temperature must be a Temperature instance or 'off'."),
   (45.6, "Backup only tank temperature must be a Temperature instance or 'off'."),
