@@ -47,6 +47,286 @@ async def test_get_device_info_value_cases(device_info, key, get_devices_side_ef
   else:
     result = await device._get_device_info_value(key, call_device_info)
     assert result == expected_result
+    
+@pytest.mark.asyncio
+async def test_get_permanent_heat_demand_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"permHD": True}
+    device._get_device_info_value = AsyncMock(return_value=True)
+    result = await device.get_permanent_heat_demand(device_info)
+    device._get_device_info_value.assert_awaited_once_with("permHD", device_info)
+    assert result is True
+
+@pytest.mark.asyncio
+async def test_get_permanent_cool_demand_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"permCD": True}
+    device._get_device_info_value = AsyncMock(return_value=True)
+    result = await device.get_permanent_cool_demand(device_info)
+    device._get_device_info_value.assert_awaited_once_with("permCD", device_info)
+    assert result is True
+
+@pytest.mark.asyncio
+async def test_get_hvac_mode_priority_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"prior": "auto"}
+    device._get_device_info_value = AsyncMock(return_value="auto")
+    result = await device.get_hvac_mode_priority(device_info)
+    device._get_device_info_value.assert_awaited_once_with("prior", device_info)
+    assert result == "auto"
+
+@pytest.mark.asyncio
+async def test_get_weather_shutdown_lag_time_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"wwTime": 10}
+    device._get_device_info_value = AsyncMock(return_value=10)
+    result = await device.get_weather_shutdown_lag_time(device_info)
+    device._get_device_info_value.assert_awaited_once_with("wwTime", device_info)
+    assert result == 10
+
+@pytest.mark.asyncio
+async def test_get_heat_cool_switch_delay_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"hpSw": 60}
+    device._get_device_info_value = AsyncMock(return_value=60)
+    result = await device.get_heat_cool_switch_delay(device_info)
+    device._get_device_info_value.assert_awaited_once_with("hpSw", device_info)
+    assert result == 60
+
+@pytest.mark.asyncio
+async def test_get_wide_priority_differential_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"wPDif": False}
+    device._get_device_info_value = AsyncMock(return_value=False)
+    result = await device.get_wide_priority_differential(device_info)
+    device._get_device_info_value.assert_awaited_once_with("wPDif", device_info)
+    assert result is False
+
+@pytest.mark.asyncio
+async def test_get_number_of_stages_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"numStg": 2}
+    device._get_device_info_value = AsyncMock(return_value=2)
+    result = await device.get_number_of_stages(device_info)
+    device._get_device_info_value.assert_awaited_once_with("numStg", device_info)
+    assert result == 2
+
+@pytest.mark.asyncio
+async def test_get_two_stage_heat_pump_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"twoS": True}
+    device._get_device_info_value = AsyncMock(return_value=True)
+    result = await device.get_two_stage_heat_pump(device_info)
+    device._get_device_info_value.assert_awaited_once_with("twoS", device_info)
+    assert result is True
+
+@pytest.mark.asyncio
+async def test_get_stage_on_lag_time_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"lagT": 5}
+    device._get_device_info_value = AsyncMock(return_value=5)
+    result = await device.get_stage_on_lag_time(device_info)
+    device._get_device_info_value.assert_awaited_once_with("lagT", device_info)
+    assert result == 5
+
+@pytest.mark.asyncio
+async def test_get_stage_off_lag_time_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"lagOff": 3}
+    device._get_device_info_value = AsyncMock(return_value=3)
+    result = await device.get_stage_off_lag_time(device_info)
+    device._get_device_info_value.assert_awaited_once_with("lagOff", device_info)
+    assert result == 3
+
+@pytest.mark.asyncio
+async def test_get_rotate_cycles_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"rotCy": 4}
+    device._get_device_info_value = AsyncMock(return_value=4)
+    result = await device.get_rotate_cycles(device_info)
+    device._get_device_info_value.assert_awaited_once_with("rotCy", device_info)
+    assert result == 4
+
+@pytest.mark.asyncio
+async def test_get_rotate_time_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"rotTi": 12}
+    device._get_device_info_value = AsyncMock(return_value=12)
+    result = await device.get_rotate_time(device_info)
+    device._get_device_info_value.assert_awaited_once_with("rotTi", device_info)
+    assert result == 12
+
+@pytest.mark.asyncio
+async def test_get_off_staging_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"hpStg": True}
+    device._get_device_info_value = AsyncMock(return_value=True)
+    result = await device.get_off_staging(device_info)
+    device._get_device_info_value.assert_awaited_once_with("hpStg", device_info)
+    assert result is True
+
+@pytest.mark.asyncio
+async def test_get_warm_weather_shutdown_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"wwsd": 75}
+    device._get_device_info_value = AsyncMock(return_value=75)
+    result = await device.get_warm_weather_shutdown(device_info)
+    device._get_device_info_value.assert_awaited_once_with("wwsd", device_info)
+    assert result == 75
+
+@pytest.mark.asyncio
+async def test_get_hot_tank_outdoor_reset_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"dot": 60}
+    device._get_device_info_value = AsyncMock(return_value=60)
+    result = await device.get_hot_tank_outdoor_reset(device_info)
+    device._get_device_info_value.assert_awaited_once_with("dot", device_info)
+    assert result == 60
+
+@pytest.mark.asyncio
+async def test_get_hot_tank_differential_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"htDif": 10}
+    device._get_device_info_value = AsyncMock(return_value=10)
+    result = await device.get_hot_tank_differential(device_info)
+    device._get_device_info_value.assert_awaited_once_with("htDif", device_info)
+    assert result == 10
+
+@pytest.mark.asyncio
+async def test_get_hot_tank_min_temp_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"dbt": 100}
+    device._get_device_info_value = AsyncMock(return_value=100)
+    result = await device.get_hot_tank_min_temp(device_info)
+    device._get_device_info_value.assert_awaited_once_with("dbt", device_info)
+    assert result == 100
+
+@pytest.mark.asyncio
+async def test_get_hot_tank_max_temp_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"mbt": 150}
+    device._get_device_info_value = AsyncMock(return_value=150)
+    result = await device.get_hot_tank_max_temp(device_info)
+    device._get_device_info_value.assert_awaited_once_with("mbt", device_info)
+    assert result == 150
+
+@pytest.mark.asyncio
+async def test_get_cold_weather_shutdown_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"cwsd": 40}
+    device._get_device_info_value = AsyncMock(return_value=40)
+    result = await device.get_cold_weather_shutdown(device_info)
+    device._get_device_info_value.assert_awaited_once_with("cwsd", device_info)
+    assert result == 40
+
+@pytest.mark.asyncio
+async def test_get_cold_tank_outdoor_reset_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"cdot": 50}
+    device._get_device_info_value = AsyncMock(return_value=50)
+    result = await device.get_cold_tank_outdoor_reset(device_info)
+    device._get_device_info_value.assert_awaited_once_with("cdot", device_info)
+    assert result == 50
+
+@pytest.mark.asyncio
+async def test_get_cold_tank_differential_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"clDif": 8}
+    device._get_device_info_value = AsyncMock(return_value=8)
+    result = await device.get_cold_tank_differential(device_info)
+    device._get_device_info_value.assert_awaited_once_with("clDif", device_info)
+    assert result == 8
+
+@pytest.mark.asyncio
+async def test_get_cold_tank_min_temp_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"dst": 45}
+    device._get_device_info_value = AsyncMock(return_value=45)
+    result = await device.get_cold_tank_min_temp(device_info)
+    device._get_device_info_value.assert_awaited_once_with("dst", device_info)
+    assert result == 45
+
+@pytest.mark.asyncio
+async def test_get_cold_tank_max_temp_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"mst": 55}
+    device._get_device_info_value = AsyncMock(return_value=55)
+    result = await device.get_cold_tank_max_temp(device_info)
+    device._get_device_info_value.assert_awaited_once_with("mst", device_info)
+    assert result == 55
+
+@pytest.mark.asyncio
+async def test_get_backup_lag_time_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"bkLag": 20}
+    device._get_device_info_value = AsyncMock(return_value=20)
+    result = await device.get_backup_lag_time(device_info)
+    device._get_device_info_value.assert_awaited_once_with("bkLag", device_info)
+    assert result == 20
+
+@pytest.mark.asyncio
+async def test_get_backup_temp_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"bkTemp": 30}
+    device._get_device_info_value = AsyncMock(return_value=30)
+    result = await device.get_backup_temp(device_info)
+    device._get_device_info_value.assert_awaited_once_with("bkTemp", device_info)
+    assert result == 30
+
+@pytest.mark.asyncio
+async def test_get_backup_differential_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"bkDif": 5}
+    device._get_device_info_value = AsyncMock(return_value=5)
+    result = await device.get_backup_differential(device_info)
+    device._get_device_info_value.assert_awaited_once_with("bkDif", device_info)
+    assert result == 5
+
+@pytest.mark.asyncio
+async def test_get_backup_only_outdoor_temp_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"bkOd": 10}
+    device._get_device_info_value = AsyncMock(return_value=10)
+    result = await device.get_backup_only_outdoor_temp(device_info)
+    device._get_device_info_value.assert_awaited_once_with("bkOd", device_info)
+    assert result == 10
+
+@pytest.mark.asyncio
+async def test_get_backup_only_tank_temp_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"bkTk": 120}
+    device._get_device_info_value = AsyncMock(return_value=120)
+    result = await device.get_backup_only_tank_temp(device_info)
+    device._get_device_info_value.assert_awaited_once_with("bkTk", device_info)
+    assert result == 120
 
 @pytest.mark.asyncio
 async def test_get_firmware_version_smoke():

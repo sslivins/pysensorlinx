@@ -1402,6 +1402,426 @@ class SensorlinxDevice:
     #################################################################################################################################
     #                                               General Device Get Methods
     #################################################################################################################################
+    
+    async def get_permanent_heat_demand(self, device_info: Optional[Dict] = None):
+        """
+        Get the permanent heat demand setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The permanent heat demand value.
+
+        Raises:
+            RuntimeError: If the device or permanent heat demand is not found.
+        """
+        return await self._get_device_info_value(PERMANENT_HEAT_DEMAND, device_info)
+
+    async def get_permanent_cool_demand(self, device_info: Optional[Dict] = None):
+        """
+        Get the permanent cool demand setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The permanent cool demand value.
+
+        Raises:
+            RuntimeError: If the device or permanent cool demand is not found.
+        """
+        return await self._get_device_info_value(PERMANENT_COOL_DEMAND, device_info)
+
+    async def get_hvac_mode_priority(self, device_info: Optional[Dict] = None):
+        """
+        Get the HVAC mode priority for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The HVAC mode priority value.
+
+        Raises:
+            RuntimeError: If the device or HVAC mode priority is not found.
+        """
+        return await self._get_device_info_value(HVAC_MODE_PRIORITY, device_info)
+
+    async def get_weather_shutdown_lag_time(self, device_info: Optional[Dict] = None):
+        """
+        Get the weather shutdown lag time for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The weather shutdown lag time value.
+
+        Raises:
+            RuntimeError: If the device or weather shutdown lag time is not found.
+        """
+        return await self._get_device_info_value(WEATHER_SHUTDOWN_LAG_TIME, device_info)
+
+    async def get_heat_cool_switch_delay(self, device_info: Optional[Dict] = None):
+        """
+        Get the heat/cool switch delay for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The heat/cool switch delay value.
+
+        Raises:
+            RuntimeError: If the device or heat/cool switch delay is not found.
+        """
+        return await self._get_device_info_value(HEAT_COOL_SWITCH_DELAY, device_info)
+
+    async def get_wide_priority_differential(self, device_info: Optional[Dict] = None):
+        """
+        Get the wide priority differential setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The wide priority differential value.
+
+        Raises:
+            RuntimeError: If the device or wide priority differential is not found.
+        """
+        return await self._get_device_info_value(WIDE_PRIORITY_DIFFERENTIAL, device_info)
+
+    async def get_number_of_stages(self, device_info: Optional[Dict] = None):
+        """
+        Get the number of stages for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The number of stages value.
+
+        Raises:
+            RuntimeError: If the device or number of stages is not found.
+        """
+        return await self._get_device_info_value(NUMBER_OF_STAGES, device_info)
+
+    async def get_two_stage_heat_pump(self, device_info: Optional[Dict] = None):
+        """
+        Get the two-stage heat pump setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The two-stage heat pump value.
+
+        Raises:
+            RuntimeError: If the device or two-stage heat pump is not found.
+        """
+        return await self._get_device_info_value(TWO_STAGE_HEAT_PUMP, device_info)
+
+    async def get_stage_on_lag_time(self, device_info: Optional[Dict] = None):
+        """
+        Get the stage ON lag time for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The stage ON lag time value.
+
+        Raises:
+            RuntimeError: If the device or stage ON lag time is not found.
+        """
+        return await self._get_device_info_value(STAGE_ON_LAG_TIME, device_info)
+
+    async def get_stage_off_lag_time(self, device_info: Optional[Dict] = None):
+        """
+        Get the stage OFF lag time for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The stage OFF lag time value.
+
+        Raises:
+            RuntimeError: If the device or stage OFF lag time is not found.
+        """
+        return await self._get_device_info_value(STAGE_OFF_LAG_TIME, device_info)
+
+    async def get_rotate_cycles(self, device_info: Optional[Dict] = None):
+        """
+        Get the rotate cycles setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The rotate cycles value.
+
+        Raises:
+            RuntimeError: If the device or rotate cycles is not found.
+        """
+        return await self._get_device_info_value(ROTATE_CYCLES, device_info)
+
+    async def get_rotate_time(self, device_info: Optional[Dict] = None):
+        """
+        Get the rotate time setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The rotate time value.
+
+        Raises:
+            RuntimeError: If the device or rotate time is not found.
+        """
+        return await self._get_device_info_value(ROTATE_TIME, device_info)
+
+    async def get_off_staging(self, device_info: Optional[Dict] = None):
+        """
+        Get the off staging setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The off staging value.
+
+        Raises:
+            RuntimeError: If the device or off staging is not found.
+        """
+        return await self._get_device_info_value(OFF_STAGING, device_info)
+
+    async def get_warm_weather_shutdown(self, device_info: Optional[Dict] = None):
+        """
+        Get the warm weather shutdown setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The warm weather shutdown value.
+
+        Raises:
+            RuntimeError: If the device or warm weather shutdown is not found.
+        """
+        return await self._get_device_info_value(WARM_WEATHER_SHUTDOWN, device_info)
+
+    async def get_hot_tank_outdoor_reset(self, device_info: Optional[Dict] = None):
+        """
+        Get the hot tank outdoor reset setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The hot tank outdoor reset value.
+
+        Raises:
+            RuntimeError: If the device or hot tank outdoor reset is not found.
+        """
+        return await self._get_device_info_value(HOT_TANK_OUTDOOR_RESET, device_info)
+
+    async def get_hot_tank_differential(self, device_info: Optional[Dict] = None):
+        """
+        Get the hot tank differential setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The hot tank differential value.
+
+        Raises:
+            RuntimeError: If the device or hot tank differential is not found.
+        """
+        return await self._get_device_info_value(HOT_TANK_DIFFERENTIAL, device_info)
+
+    async def get_hot_tank_min_temp(self, device_info: Optional[Dict] = None):
+        """
+        Get the hot tank minimum temperature for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The hot tank minimum temperature value.
+
+        Raises:
+            RuntimeError: If the device or hot tank minimum temperature is not found.
+        """
+        return await self._get_device_info_value(HOT_TANK_MIN_TEMP, device_info)
+
+    async def get_hot_tank_max_temp(self, device_info: Optional[Dict] = None):
+        """
+        Get the hot tank maximum temperature for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The hot tank maximum temperature value.
+
+        Raises:
+            RuntimeError: If the device or hot tank maximum temperature is not found.
+        """
+        return await self._get_device_info_value(HOT_TANK_MAX_TEMP, device_info)
+
+    async def get_cold_weather_shutdown(self, device_info: Optional[Dict] = None):
+        """
+        Get the cold weather shutdown setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The cold weather shutdown value.
+
+        Raises:
+            RuntimeError: If the device or cold weather shutdown is not found.
+        """
+        return await self._get_device_info_value(COLD_WEATHER_SHUTDOWN, device_info)
+
+    async def get_cold_tank_outdoor_reset(self, device_info: Optional[Dict] = None):
+        """
+        Get the cold tank outdoor reset setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The cold tank outdoor reset value.
+
+        Raises:
+            RuntimeError: If the device or cold tank outdoor reset is not found.
+        """
+        return await self._get_device_info_value(COLD_TANK_OUTDOOR_RESET, device_info)
+
+    async def get_cold_tank_differential(self, device_info: Optional[Dict] = None):
+        """
+        Get the cold tank differential setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The cold tank differential value.
+
+        Raises:
+            RuntimeError: If the device or cold tank differential is not found.
+        """
+        return await self._get_device_info_value(COLD_TANK_DIFFERENTIAL, device_info)
+
+    async def get_cold_tank_min_temp(self, device_info: Optional[Dict] = None):
+        """
+        Get the cold tank minimum temperature for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The cold tank minimum temperature value.
+
+        Raises:
+            RuntimeError: If the device or cold tank minimum temperature is not found.
+        """
+        return await self._get_device_info_value(COLD_TANK_MIN_TEMP, device_info)
+
+    async def get_cold_tank_max_temp(self, device_info: Optional[Dict] = None):
+        """
+        Get the cold tank maximum temperature for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The cold tank maximum temperature value.
+
+        Raises:
+            RuntimeError: If the device or cold tank maximum temperature is not found.
+        """
+        return await self._get_device_info_value(COLD_TANK_MAX_TEMP, device_info)
+
+    async def get_backup_lag_time(self, device_info: Optional[Dict] = None):
+        """
+        Get the backup lag time setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The backup lag time value.
+
+        Raises:
+            RuntimeError: If the device or backup lag time is not found.
+        """
+        return await self._get_device_info_value(BACKUP_LAG_TIME, device_info)
+
+    async def get_backup_temp(self, device_info: Optional[Dict] = None):
+        """
+        Get the backup temperature setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The backup temperature value.
+
+        Raises:
+            RuntimeError: If the device or backup temperature is not found.
+        """
+        return await self._get_device_info_value(BACKUP_TEMP, device_info)
+
+    async def get_backup_differential(self, device_info: Optional[Dict] = None):
+        """
+        Get the backup differential setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The backup differential value.
+
+        Raises:
+            RuntimeError: If the device or backup differential is not found.
+        """
+        return await self._get_device_info_value(BACKUP_DIFFERENTIAL, device_info)
+
+    async def get_backup_only_outdoor_temp(self, device_info: Optional[Dict] = None):
+        """
+        Get the backup only outdoor temperature setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The backup only outdoor temperature value.
+
+        Raises:
+            RuntimeError: If the device or backup only outdoor temperature is not found.
+        """
+        return await self._get_device_info_value(BACKUP_ONLY_OUTDOOR_TEMP, device_info)
+
+    async def get_backup_only_tank_temp(self, device_info: Optional[Dict] = None):
+        """
+        Get the backup only tank temperature setting for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            The backup only tank temperature value.
+
+        Raises:
+            RuntimeError: If the device or backup only tank temperature is not found.
+        """
+        return await self._get_device_info_value(BACKUP_ONLY_TANK_TEMP, device_info)    
 
     async def get_firmware_version(self, device_info: Optional[Dict] = None) -> str:
         """
