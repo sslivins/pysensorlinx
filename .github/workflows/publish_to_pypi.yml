@@ -1,13 +1,17 @@
 name: Publish to PyPI
 
 on:
+  workflow_dispatch:
   push:
     tags:
-      - 'v*'  # Triggers when you push a tag starting with "v", e.g., v1.0.0
+      - 'v*'
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Check out the repository

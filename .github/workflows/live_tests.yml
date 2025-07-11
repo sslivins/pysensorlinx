@@ -24,7 +24,10 @@ jobs:
 
       - name: Run live tests
         env:
-          OMNISENSE_USERNAME: ${{ secrets.OMNISENSE_USERNAME }}
-          OMNISENSE_PASSWORD: ${{ secrets.OMNISENSE_PASSWORD }}
+          SENSORLINX_EMAIL: ${{ secrets.SENSORLINX_EMAIL }}
+          SENSORLINX_PASSWORD: ${{ secrets.SENSORLINX_PASSWORD }}
+          SENSORLINX_BUILDING_ID: ${{ secrets.SENSORLINX_BUILDING_ID }}
+          SENSORLINX_DEVICE_ID: ${{ secrets.SENSORLINX_DEVICE_ID }}          
+          
         run: |
           pytest -s -m live
