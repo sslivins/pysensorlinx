@@ -24,4 +24,4 @@ jobs:
           pip install -e .[tests]
 
       - name: Run tests
-        run: pytest -s -m offline
+        run: pytest -s -m "set_params or get_params or temperature"

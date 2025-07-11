@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pysensorlinx"          
-version = "0.1.2"             
+version = "0.1.0"             
 description = "Python library for accessing SensorLinx Device Data"
 readme = "README.md"          
 license = { text = "MIT" }    
@@ -21,7 +21,8 @@ classifiers = [
 ]
 # Runtime dependencies
 dependencies = [
-    "aiohttp>=3.11.12"
+    "aiohttp>=3.11.12",
+    "glom"
 ]
 
 [project.optional-dependencies]
