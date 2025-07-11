@@ -1,13 +1,14 @@
 # pysensorlinx
 
-pysensorlinx is a Python library for accessing Omnisense sensor data directly from the sensorlinx.com website. It supports logging into the service, retrieving site lists, and fetching sensor data.
+pysensorlinx is a Python library for accessing Sensor Linx sensor data directly from their webservice. It supports logging into the service, retrieving sites list, and setting and getting device data used to control devices such as heat pumps, etc.
 
 ## Features
 
-- Login to the Omnisense website
-- Retrieve a list of sites with sensor data
-- Fetch detailed sensor data for a selected site
-- Asynchronous methods using aiohttp
+- Login to sensor linx account
+- retrieve the user profile
+- get the list of buildings
+- get the list of devices
+- get and set device parameters for a specific device
 
 ## Install this repo
 
