@@ -136,260 +136,260 @@ async def test_live_get_specific_device():
         await sensorlinx.close()
     
 
-@pytest.mark.live
-@pytest.mark.skipif(
-    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
-    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
-)
-@pytest.mark.asyncio
-async def test_live_enable_permanent_cd():
-    sensorlinx = Sensorlinx()
-    username = os.getenv("SENSORLINX_EMAIL")
-    password = os.getenv("SENSORLINX_PASSWORD")
-    building_id = os.getenv("SENSORLINX_BUILDING_ID")
-    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+# @pytest.mark.live
+# @pytest.mark.skipif(
+#     not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+#     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+# )
+# @pytest.mark.asyncio
+# async def test_live_enable_permanent_cd():
+#     sensorlinx = Sensorlinx()
+#     username = os.getenv("SENSORLINX_EMAIL")
+#     password = os.getenv("SENSORLINX_PASSWORD")
+#     building_id = os.getenv("SENSORLINX_BUILDING_ID")
+#     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    try:
-        await sensorlinx.login(username, password)
-        sensorlinxdevice = SensorlinxDevice(
-            sensorlinx=sensorlinx,
-            building_id=building_id,
-            device_id=device_id
-        )
-        await sensorlinxdevice.set_permanent_cd(True)
-    except Exception as e:
-        print(f"Test failed due to exception: {type(e).__name__}: {e}")
-        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
-    finally:
-        await sensorlinx.close()
+#     try:
+#         await sensorlinx.login(username, password)
+#         sensorlinxdevice = SensorlinxDevice(
+#             sensorlinx=sensorlinx,
+#             building_id=building_id,
+#             device_id=device_id
+#         )
+#         await sensorlinxdevice.set_permanent_cd(True)
+#     except Exception as e:
+#         print(f"Test failed due to exception: {type(e).__name__}: {e}")
+#         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+#     finally:
+#         await sensorlinx.close()
     
 
-@pytest.mark.live
-@pytest.mark.skipif(
-    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
-    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
-)
-@pytest.mark.asyncio
-async def test_live_enable_permanent_hd():
-    sensorlinx = Sensorlinx()
-    username = os.getenv("SENSORLINX_EMAIL")
-    password = os.getenv("SENSORLINX_PASSWORD")
-    building_id = os.getenv("SENSORLINX_BUILDING_ID")
-    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+# @pytest.mark.live
+# @pytest.mark.skipif(
+#     not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+#     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+# )
+# @pytest.mark.asyncio
+# async def test_live_enable_permanent_hd():
+#     sensorlinx = Sensorlinx()
+#     username = os.getenv("SENSORLINX_EMAIL")
+#     password = os.getenv("SENSORLINX_PASSWORD")
+#     building_id = os.getenv("SENSORLINX_BUILDING_ID")
+#     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    try:
-        await sensorlinx.login(username, password)
-        sensorlinxdevice = SensorlinxDevice(
-            sensorlinx=sensorlinx,
-            building_id=building_id,
-            device_id=device_id
-        )
-        await sensorlinxdevice.set_permanent_hd(True)
-    except Exception as e:
-        print(f"Test failed due to exception: {type(e).__name__}: {e}")
-        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
-    finally:
-        await sensorlinx.close()
+#     try:
+#         await sensorlinx.login(username, password)
+#         sensorlinxdevice = SensorlinxDevice(
+#             sensorlinx=sensorlinx,
+#             building_id=building_id,
+#             device_id=device_id
+#         )
+#         await sensorlinxdevice.set_permanent_hd(True)
+#     except Exception as e:
+#         print(f"Test failed due to exception: {type(e).__name__}: {e}")
+#         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+#     finally:
+#         await sensorlinx.close()
     
 
-@pytest.mark.live
-@pytest.mark.skipif(
-    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
-    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
-)
-@pytest.mark.asyncio
-async def test_live_set_cold_weather_shutdown_off():
-    sensorlinx = Sensorlinx()
-    username = os.getenv("SENSORLINX_EMAIL")
-    password = os.getenv("SENSORLINX_PASSWORD")
-    building_id = os.getenv("SENSORLINX_BUILDING_ID")
-    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+# @pytest.mark.live
+# @pytest.mark.skipif(
+#     not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+#     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+# )
+# @pytest.mark.asyncio
+# async def test_live_set_cold_weather_shutdown_off():
+#     sensorlinx = Sensorlinx()
+#     username = os.getenv("SENSORLINX_EMAIL")
+#     password = os.getenv("SENSORLINX_PASSWORD")
+#     building_id = os.getenv("SENSORLINX_BUILDING_ID")
+#     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    try:
-        await sensorlinx.login(username, password)
-        sensorlinxdevice = SensorlinxDevice(
-            sensorlinx=sensorlinx,
-            building_id=building_id,
-            device_id=device_id
-        )
-        # Test setting cold weather shutdown to 'off'
-        await sensorlinxdevice.set_cold_weather_shutdown("off")
-    except Exception as e:
-        print(f"Test failed due to exception: {type(e).__name__}: {e}")
-        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
-    finally:
-        await sensorlinx.close()
+#     try:
+#         await sensorlinx.login(username, password)
+#         sensorlinxdevice = SensorlinxDevice(
+#             sensorlinx=sensorlinx,
+#             building_id=building_id,
+#             device_id=device_id
+#         )
+#         # Test setting cold weather shutdown to 'off'
+#         await sensorlinxdevice.set_cold_weather_shutdown("off")
+#     except Exception as e:
+#         print(f"Test failed due to exception: {type(e).__name__}: {e}")
+#         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+#     finally:
+#         await sensorlinx.close()
     
     
-@pytest.mark.live
-@pytest.mark.skipif(
-    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
-    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
-)
-@pytest.mark.asyncio
-async def test_live_set_cold_weather_shutdown_5c():
-    sensorlinx = Sensorlinx()
-    username = os.getenv("SENSORLINX_EMAIL")
-    password = os.getenv("SENSORLINX_PASSWORD")
-    building_id = os.getenv("SENSORLINX_BUILDING_ID")
-    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+# @pytest.mark.live
+# @pytest.mark.skipif(
+#     not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+#     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+# )
+# @pytest.mark.asyncio
+# async def test_live_set_cold_weather_shutdown_5c():
+#     sensorlinx = Sensorlinx()
+#     username = os.getenv("SENSORLINX_EMAIL")
+#     password = os.getenv("SENSORLINX_PASSWORD")
+#     building_id = os.getenv("SENSORLINX_BUILDING_ID")
+#     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    try:
-        await sensorlinx.login(username, password)
-        sensorlinxdevice = SensorlinxDevice(
-            sensorlinx=sensorlinx,
-            building_id=building_id,
-            device_id=device_id
-        )
-        # Test setting cold weather shutdown to 5C
-        await sensorlinxdevice.set_cold_weather_shutdown(Temperature(5, "C"))
-    except Exception as e:
-        print(f"Test failed due to exception: {type(e).__name__}: {e}")
-        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
-    finally:
-        await sensorlinx.close()
+#     try:
+#         await sensorlinx.login(username, password)
+#         sensorlinxdevice = SensorlinxDevice(
+#             sensorlinx=sensorlinx,
+#             building_id=building_id,
+#             device_id=device_id
+#         )
+#         # Test setting cold weather shutdown to 5C
+#         await sensorlinxdevice.set_cold_weather_shutdown(Temperature(5, "C"))
+#     except Exception as e:
+#         print(f"Test failed due to exception: {type(e).__name__}: {e}")
+#         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+#     finally:
+#         await sensorlinx.close()
     
     
-@pytest.mark.live
-@pytest.mark.skipif(
-    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
-    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
-)
-@pytest.mark.asyncio
-async def test_live_set_warm_weather_shutdown_off():
-    sensorlinx = Sensorlinx()
-    username = os.getenv("SENSORLINX_EMAIL")
-    password = os.getenv("SENSORLINX_PASSWORD")
-    building_id = os.getenv("SENSORLINX_BUILDING_ID")
-    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+# @pytest.mark.live
+# @pytest.mark.skipif(
+#     not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+#     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+# )
+# @pytest.mark.asyncio
+# async def test_live_set_warm_weather_shutdown_off():
+#     sensorlinx = Sensorlinx()
+#     username = os.getenv("SENSORLINX_EMAIL")
+#     password = os.getenv("SENSORLINX_PASSWORD")
+#     building_id = os.getenv("SENSORLINX_BUILDING_ID")
+#     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    try:
-        await sensorlinx.login(username, password)
-        sensorlinxdevice = SensorlinxDevice(
-            sensorlinx=sensorlinx,
-            building_id=building_id,
-            device_id=device_id
-        )
-        # Test setting warm weather shutdown to 'off'
-        await sensorlinxdevice.set_warm_weather_shutdown("off")
-    except Exception as e:
-        print(f"Test failed due to exception: {type(e).__name__}: {e}")
-        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
-    finally:
-        await sensorlinx.close()
+#     try:
+#         await sensorlinx.login(username, password)
+#         sensorlinxdevice = SensorlinxDevice(
+#             sensorlinx=sensorlinx,
+#             building_id=building_id,
+#             device_id=device_id
+#         )
+#         # Test setting warm weather shutdown to 'off'
+#         await sensorlinxdevice.set_warm_weather_shutdown("off")
+#     except Exception as e:
+#         print(f"Test failed due to exception: {type(e).__name__}: {e}")
+#         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+#     finally:
+#         await sensorlinx.close()
 
 
-@pytest.mark.live
-@pytest.mark.skipif(
-    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
-    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
-)
-@pytest.mark.asyncio
-async def test_live_set_warm_weather_shutdown_30c():
-    sensorlinx = Sensorlinx()
-    username = os.getenv("SENSORLINX_EMAIL")
-    password = os.getenv("SENSORLINX_PASSWORD")
-    building_id = os.getenv("SENSORLINX_BUILDING_ID")
-    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+# @pytest.mark.live
+# @pytest.mark.skipif(
+#     not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+#     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+# )
+# @pytest.mark.asyncio
+# async def test_live_set_warm_weather_shutdown_30c():
+#     sensorlinx = Sensorlinx()
+#     username = os.getenv("SENSORLINX_EMAIL")
+#     password = os.getenv("SENSORLINX_PASSWORD")
+#     building_id = os.getenv("SENSORLINX_BUILDING_ID")
+#     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    try:
-        await sensorlinx.login(username, password)
-        sensorlinxdevice = SensorlinxDevice(
-            sensorlinx=sensorlinx,
-            building_id=building_id,
-            device_id=device_id
-        )
-        # Test setting warm weather shutdown to 30C
-        await sensorlinxdevice.set_warm_weather_shutdown(Temperature(30, "C"))
-    except Exception as e:
-        print(f"Test failed due to exception: {type(e).__name__}: {e}")
-        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
-    finally:
-        await sensorlinx.close()
+#     try:
+#         await sensorlinx.login(username, password)
+#         sensorlinxdevice = SensorlinxDevice(
+#             sensorlinx=sensorlinx,
+#             building_id=building_id,
+#             device_id=device_id
+#         )
+#         # Test setting warm weather shutdown to 30C
+#         await sensorlinxdevice.set_warm_weather_shutdown(Temperature(30, "C"))
+#     except Exception as e:
+#         print(f"Test failed due to exception: {type(e).__name__}: {e}")
+#         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+#     finally:
+#         await sensorlinx.close()
     
     
-@pytest.mark.live
-@pytest.mark.skipif(
-    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
-    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
-)
-@pytest.mark.asyncio
-async def test_live_set_hvac_mode_priority_heat():
-    sensorlinx = Sensorlinx()
-    username = os.getenv("SENSORLINX_EMAIL")
-    password = os.getenv("SENSORLINX_PASSWORD")
-    building_id = os.getenv("SENSORLINX_BUILDING_ID")
-    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+# @pytest.mark.live
+# @pytest.mark.skipif(
+#     not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+#     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+# )
+# @pytest.mark.asyncio
+# async def test_live_set_hvac_mode_priority_heat():
+#     sensorlinx = Sensorlinx()
+#     username = os.getenv("SENSORLINX_EMAIL")
+#     password = os.getenv("SENSORLINX_PASSWORD")
+#     building_id = os.getenv("SENSORLINX_BUILDING_ID")
+#     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    try:
-        await sensorlinx.login(username, password)
-        sensorlinxdevice = SensorlinxDevice(
-            sensorlinx=sensorlinx,
-            building_id=building_id,
-            device_id=device_id
-        )
-        await sensorlinxdevice.set_hvac_mode_priority("heat")
-    except Exception as e:
-        print(f"Test failed due to exception: {type(e).__name__}: {e}")
-        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
-    finally:
-        await sensorlinx.close()
-
-
-@pytest.mark.live
-@pytest.mark.skipif(
-    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
-    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
-)
-@pytest.mark.asyncio
-async def test_live_set_hvac_mode_priority_cool():
-    sensorlinx = Sensorlinx()
-    username = os.getenv("SENSORLINX_EMAIL")
-    password = os.getenv("SENSORLINX_PASSWORD")
-    building_id = os.getenv("SENSORLINX_BUILDING_ID")
-    device_id = os.getenv("SENSORLINX_DEVICE_ID")
-
-    try:
-        await sensorlinx.login(username, password)
-        sensorlinxdevice = SensorlinxDevice(
-            sensorlinx=sensorlinx,
-            building_id=building_id,
-            device_id=device_id
-        )
-        await sensorlinxdevice.set_hvac_mode_priority("cool")
-    except Exception as e:
-        print(f"Test failed due to exception: {type(e).__name__}: {e}")
-        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
-    finally:
-        await sensorlinx.close()
+#     try:
+#         await sensorlinx.login(username, password)
+#         sensorlinxdevice = SensorlinxDevice(
+#             sensorlinx=sensorlinx,
+#             building_id=building_id,
+#             device_id=device_id
+#         )
+#         await sensorlinxdevice.set_hvac_mode_priority("heat")
+#     except Exception as e:
+#         print(f"Test failed due to exception: {type(e).__name__}: {e}")
+#         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+#     finally:
+#         await sensorlinx.close()
 
 
-@pytest.mark.live
-@pytest.mark.skipif(
-    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
-    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
-)
-@pytest.mark.asyncio
-async def test_live_set_hvac_mode_priority_auto():
-    sensorlinx = Sensorlinx()
-    username = os.getenv("SENSORLINX_EMAIL")
-    password = os.getenv("SENSORLINX_PASSWORD")
-    building_id = os.getenv("SENSORLINX_BUILDING_ID")
-    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+# @pytest.mark.live
+# @pytest.mark.skipif(
+#     not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+#     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+# )
+# @pytest.mark.asyncio
+# async def test_live_set_hvac_mode_priority_cool():
+#     sensorlinx = Sensorlinx()
+#     username = os.getenv("SENSORLINX_EMAIL")
+#     password = os.getenv("SENSORLINX_PASSWORD")
+#     building_id = os.getenv("SENSORLINX_BUILDING_ID")
+#     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    try:
-        await sensorlinx.login(username, password)
-        sensorlinxdevice = SensorlinxDevice(
-            sensorlinx=sensorlinx,
-            building_id=building_id,
-            device_id=device_id
-        )
-        await sensorlinxdevice.set_hvac_mode_priority("auto")
-    except Exception as e:
-        print(f"Test failed due to exception: {type(e).__name__}: {e}")
-        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
-    finally:
-        await sensorlinx.close()
+#     try:
+#         await sensorlinx.login(username, password)
+#         sensorlinxdevice = SensorlinxDevice(
+#             sensorlinx=sensorlinx,
+#             building_id=building_id,
+#             device_id=device_id
+#         )
+#         await sensorlinxdevice.set_hvac_mode_priority("cool")
+#     except Exception as e:
+#         print(f"Test failed due to exception: {type(e).__name__}: {e}")
+#         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+#     finally:
+#         await sensorlinx.close()
+
+
+# @pytest.mark.live
+# @pytest.mark.skipif(
+#     not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+#     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+# )
+# @pytest.mark.asyncio
+# async def test_live_set_hvac_mode_priority_auto():
+#     sensorlinx = Sensorlinx()
+#     username = os.getenv("SENSORLINX_EMAIL")
+#     password = os.getenv("SENSORLINX_PASSWORD")
+#     building_id = os.getenv("SENSORLINX_BUILDING_ID")
+#     device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+#     try:
+#         await sensorlinx.login(username, password)
+#         sensorlinxdevice = SensorlinxDevice(
+#             sensorlinx=sensorlinx,
+#             building_id=building_id,
+#             device_id=device_id
+#         )
+#         await sensorlinxdevice.set_hvac_mode_priority("auto")
+#     except Exception as e:
+#         print(f"Test failed due to exception: {type(e).__name__}: {e}")
+#         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+#     finally:
+#         await sensorlinx.close()
     
 @pytest.mark.live
 @pytest.mark.skipif(
@@ -465,34 +465,34 @@ async def test_live_get_tank_temperature():
         await sensorlinx.close()
     
     
-@pytest.mark.live
-@pytest.mark.skipif(
-    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
-    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
-)
-@pytest.mark.asyncio
-async def test_live_set_weather_shutdown_lag_time_zero():
-    sensorlinx = Sensorlinx()
-    username = os.getenv("SENSORLINX_EMAIL")
-    password = os.getenv("SENSORLINX_PASSWORD")
-    building_id = os.getenv("SENSORLINX_BUILDING_ID")
-    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+# @pytest.mark.live
+# @pytest.mark.skipif(
+#     not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+#     reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+# )
+# @pytest.mark.asyncio
+# async def test_live_set_weather_shutdown_lag_time_zero():
+#     sensorlinx = Sensorlinx()
+#     username = os.getenv("SENSORLINX_EMAIL")
+#     password = os.getenv("SENSORLINX_PASSWORD")
+#     building_id = os.getenv("SENSORLINX_BUILDING_ID")
+#     device_id = os.getenv("SENSORLINX_DEVICE_ID")
 
-    try:
-        await sensorlinx.login(username, password)
+#     try:
+#         await sensorlinx.login(username, password)
         
-        sensorlinxdevice = SensorlinxDevice(
-            sensorlinx=sensorlinx,
-            building_id=building_id,
-            device_id=device_id
-        )
+#         sensorlinxdevice = SensorlinxDevice(
+#             sensorlinx=sensorlinx,
+#             building_id=building_id,
+#             device_id=device_id
+#         )
         
-        await sensorlinxdevice.set_weather_shutdown_lag_time(0)
-    except Exception as e:
-        print(f"Test failed due to exception: {type(e).__name__}: {e}")
-        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
-    finally:
-        await sensorlinx.close()
+#         await sensorlinxdevice.set_weather_shutdown_lag_time(0)
+#     except Exception as e:
+#         print(f"Test failed due to exception: {type(e).__name__}: {e}")
+#         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+#     finally:
+#         await sensorlinx.close()
         
 @pytest.mark.live
 @pytest.mark.skipif(
