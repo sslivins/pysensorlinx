@@ -48,6 +48,7 @@ async def test_live_get_all_buildings():
     try:
         await sensorlinx.login(username, password)
         buildings = await sensorlinx.get_buildings()
+        pprint.pprint(buildings)
         assert buildings is not None, "Failed to fetch buildings"
         assert isinstance(buildings, list), "Buildings response is not a list"
         assert len(buildings) == 1, "Expected exactly 1 building to be returned"
@@ -99,6 +100,7 @@ async def test_live_get_all_devices():
     try:
         await sensorlinx.login(username, password)
         devices = await sensorlinx.get_devices(building_id)
+        pprint.pprint(devices)
         assert devices is not None, "Failed to fetch devices"
         assert isinstance(devices, list), "Devices response is not a list"
         assert len(devices) > 0, "Expected at least one device to be returned"
@@ -638,6 +640,95 @@ async def test_live_get_runtimes():
         assert len(stages) == 2, f"Expected 2 stages, got {len(stages)}"
         assert backup is not None, "Backup should not be None"
         #pprint.pprint(runtimes)
+    except Exception as e:
+        print(f"Test failed due to exception: {type(e).__name__}: {e}")
+        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+    finally:
+        await sensorlinx.close()
+        
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_get_heatpump_stages_state():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    try:
+        await sensorlinx.login(username, password)
+        sensorlinxdevice = SensorlinxDevice(
+            sensorlinx=sensorlinx,
+            building_id=building_id,
+            device_id=device_id
+        )
+        stages_state = await sensorlinxdevice.get_heatpump_stages_state()
+        pprint.pprint(stages_state)
+        assert stages_state is not None, "Failed to fetch stages state"
+        assert isinstance(stages_state, list), "Stages state response is not a list"
+        assert len(stages_state) > 0, "Expected at least one stage"
+        
+        # Validate structure of each stage
+        for stage in stages_state:
+            assert isinstance(stage, dict), "Each stage should be a dict"
+            assert 'activated' in stage, "Stage should have 'activated' key"
+            assert 'enabled' in stage, "Stage should have 'enabled' key"
+            assert 'title' in stage, "Stage should have 'title' key"
+            assert 'device' in stage, "Stage should have 'device' key"
+            assert 'index' in stage, "Stage should have 'index' key"
+            assert 'runTime' in stage, "Stage should have 'runTime' key"
+            assert isinstance(stage['activated'], bool), "'activated' should be a bool"
+            assert isinstance(stage['enabled'], bool), "'enabled' should be a bool"
+            assert isinstance(stage['title'], str), "'title' should be a string"
+            assert isinstance(stage['device'], str), "'device' should be a string"
+            assert isinstance(stage['index'], int), "'index' should be an int"
+            assert isinstance(stage['runTime'], str), "'runTime' should be a string"
+    except Exception as e:
+        print(f"Test failed due to exception: {type(e).__name__}: {e}")
+        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+    finally:
+        await sensorlinx.close()
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_get_backup_state():
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    try:
+        await sensorlinx.login(username, password)
+        sensorlinxdevice = SensorlinxDevice(
+            sensorlinx=sensorlinx,
+            building_id=building_id,
+            device_id=device_id
+        )
+        backup_state = await sensorlinxdevice.get_backup_state()
+        pprint.pprint(backup_state)
+        assert backup_state is not None, "Failed to fetch backup state"
+        assert isinstance(backup_state, dict), "Backup state response is not a dict"
+        
+        # Validate structure of backup
+        assert 'activated' in backup_state, "Backup should have 'activated' key"
+        assert 'enabled' in backup_state, "Backup should have 'enabled' key"
+        assert 'title' in backup_state, "Backup should have 'title' key"
+        assert 'runTime' in backup_state, "Backup should have 'runTime' key"
+        assert isinstance(backup_state['activated'], bool), "'activated' should be a bool"
+        assert isinstance(backup_state['enabled'], bool), "'enabled' should be a bool"
+        assert isinstance(backup_state['title'], str), "'title' should be a string"
+        assert isinstance(backup_state['runTime'], str), "'runTime' should be a string"
     except Exception as e:
         print(f"Test failed due to exception: {type(e).__name__}: {e}")
         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")

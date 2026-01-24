@@ -74,6 +74,8 @@ SYNC_CODE = "syncCode"
 DEVICE_PIN = "production.pin"
 DEVICE_TYPE = "deviceType"  # The type of device (e.g., "ECO-0600")
 HEATPUMP_STAGE_RUNTIMES = "stgRun"
+HEATPUMP_STAGES_STATE = "stages"
+BACKUP_STATE = "backup"
 BACKUP_RUNTIME = "bkRun"
 TEMPERATURE_SENSORS = "temps"
 
@@ -2000,5 +2002,99 @@ class SensorlinxDevice:
             result["backup"] = parse_runtime(bk_run)  # You could also parse this if it's in the same format
 
         return result
+    
+    
+    async def get_heatpump_stages_state(self, device_info: Optional[Dict] = None) -> List[Dict[str, Union[bool, str, int]]]:
+        """
+        Retrieve the state of all heat pump stages.
 
+        Each stage contains information about whether it's activated (currently running),
+        enabled, its title/name, associated device, index, and runtime.
 
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            List[Dict[str, Union[bool, str, int]]]: A list of dictionaries, each containing:
+                - 'activated' (bool): Whether the stage is currently running
+                - 'enabled' (bool): Whether the stage is enabled
+                - 'title' (str): The name/title of the stage (e.g., "Stage 1")
+                - 'device' (str): The device identifier associated with the stage
+                - 'index' (int): The index of the stage
+                - 'runTime' (str): The runtime of the stage in "H:MM" format
+
+        Raises:
+            RuntimeError: If device info or stages data is not found.
+        """
+        if device_info is None:
+            try:
+                device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+            except Exception as e:
+                raise RuntimeError(f"Failed to fetch device info: {e}")
+        if not device_info:
+            raise RuntimeError("Device info not found.")
+
+        try:
+            stages_data = await self._get_device_info_value(HEATPUMP_STAGES_STATE, device_info)
+        except Exception as e:
+            raise RuntimeError(f"Failed to retrieve stages data: {e}")
+
+        if not isinstance(stages_data, list):
+            raise RuntimeError("Stages data must be a list.")
+
+        result = []
+        for stage in stages_data:
+            stage_info = {
+                'activated': stage.get('activated', False),
+                'enabled': stage.get('enabled', False),
+                'title': stage.get('title', ''),
+                'device': stage.get('device', ''),
+                'index': stage.get('index', 0),
+                'runTime': stage.get('runTime', '0:00')
+            }
+            result.append(stage_info)
+
+        return result
+
+    async def get_backup_state(self, device_info: Optional[Dict] = None) -> Dict[str, Union[bool, str]]:
+        """
+        Retrieve the state of the backup heater (e.g., electric or gas boiler).
+
+        The backup heater runs when heat pumps cannot keep up or are shut off
+        due to cold temperatures.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            Dict[str, Union[bool, str]]: A dictionary containing:
+                - 'activated' (bool): Whether the backup is currently running
+                - 'enabled' (bool): Whether the backup is enabled
+                - 'title' (str): The name/title of the backup (e.g., "Backup")
+                - 'runTime' (str): The runtime of the backup in "H:MM" format
+
+        Raises:
+            RuntimeError: If device info or backup data is not found.
+        """
+        if device_info is None:
+            try:
+                device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+            except Exception as e:
+                raise RuntimeError(f"Failed to fetch device info: {e}")
+        if not device_info:
+            raise RuntimeError("Device info not found.")
+
+        try:
+            backup_data = await self._get_device_info_value(BACKUP_STATE, device_info)
+        except Exception as e:
+            raise RuntimeError(f"Failed to retrieve backup data: {e}")
+
+        if not isinstance(backup_data, dict):
+            raise RuntimeError("Backup data must be a dictionary.")
+
+        return {
+            'activated': backup_data.get('activated', False),
+            'enabled': backup_data.get('enabled', False),
+            'title': backup_data.get('title', 'Backup'),
+            'runTime': backup_data.get('runTime', '0:00')
+        }
