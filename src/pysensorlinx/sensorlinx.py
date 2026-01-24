@@ -75,6 +75,7 @@ DEVICE_PIN = "production.pin"
 DEVICE_TYPE = "deviceType"  # The type of device (e.g., "ECO-0600")
 HEATPUMP_STAGE_RUNTIMES = "stgRun"
 HEATPUMP_STAGES_STATE = "stages"
+BACKUP_STATE = "backup"
 BACKUP_RUNTIME = "bkRun"
 TEMPERATURE_SENSORS = "temps"
 
@@ -2054,3 +2055,46 @@ class SensorlinxDevice:
             result.append(stage_info)
 
         return result
+
+    async def get_backup_state(self, device_info: Optional[Dict] = None) -> Dict[str, Union[bool, str]]:
+        """
+        Retrieve the state of the backup heater (e.g., electric or gas boiler).
+
+        The backup heater runs when heat pumps cannot keep up or are shut off
+        due to cold temperatures.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            Dict[str, Union[bool, str]]: A dictionary containing:
+                - 'activated' (bool): Whether the backup is currently running
+                - 'enabled' (bool): Whether the backup is enabled
+                - 'title' (str): The name/title of the backup (e.g., "Backup")
+                - 'runTime' (str): The runtime of the backup in "H:MM" format
+
+        Raises:
+            RuntimeError: If device info or backup data is not found.
+        """
+        if device_info is None:
+            try:
+                device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+            except Exception as e:
+                raise RuntimeError(f"Failed to fetch device info: {e}")
+        if not device_info:
+            raise RuntimeError("Device info not found.")
+
+        try:
+            backup_data = await self._get_device_info_value(BACKUP_STATE, device_info)
+        except Exception as e:
+            raise RuntimeError(f"Failed to retrieve backup data: {e}")
+
+        if not isinstance(backup_data, dict):
+            raise RuntimeError("Backup data must be a dictionary.")
+
+        return {
+            'activated': backup_data.get('activated', False),
+            'enabled': backup_data.get('enabled', False),
+            'title': backup_data.get('title', 'Backup'),
+            'runTime': backup_data.get('runTime', '0:00')
+        }
