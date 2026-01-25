@@ -193,14 +193,30 @@ async def test_get_warm_weather_shutdown_smoke():
     assert result == 75
 
 @pytest.mark.get_params
-async def test_get_hot_tank_outdoor_reset_smoke():
+@pytest.mark.parametrize(
+    "raw_value, expected_result",
+    [
+        # Value is -41, should return 'off'
+        (-41, 'off'),
+        # Normal value, should return Temperature object
+        (60, Temperature(60, 'F')),
+        (0, Temperature(0, 'F')),
+        (-40, Temperature(-40, 'F')),
+    ]
+)
+async def test_get_hot_tank_outdoor_reset(raw_value, expected_result):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"dot": 60}
-    device._get_device_info_value = AsyncMock(return_value=60)
+    device_info = {"dot": raw_value}
+    device._get_device_info_value = AsyncMock(return_value=raw_value)
     result = await device.get_hot_tank_outdoor_reset(device_info)
     device._get_device_info_value.assert_awaited_once_with("dot", device_info)
-    assert result == 60
+    if expected_result == 'off':
+        assert result == 'off'
+    else:
+        assert isinstance(result, Temperature)
+        assert result.value == expected_result.value
+        assert result.unit == expected_result.unit
 
 @pytest.mark.get_params
 async def test_get_hot_tank_differential_smoke():
@@ -243,14 +259,30 @@ async def test_get_cold_weather_shutdown_smoke():
     assert result == 40
 
 @pytest.mark.get_params
-async def test_get_cold_tank_outdoor_reset_smoke():
+@pytest.mark.parametrize(
+    "raw_value, expected_result",
+    [
+        # Value is -41, should return 'off'
+        (-41, 'off'),
+        # Normal value, should return Temperature object
+        (50, Temperature(50, 'F')),
+        (0, Temperature(0, 'F')),
+        (-40, Temperature(-40, 'F')),
+    ]
+)
+async def test_get_cold_tank_outdoor_reset(raw_value, expected_result):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"cdot": 50}
-    device._get_device_info_value = AsyncMock(return_value=50)
+    device_info = {"cdot": raw_value}
+    device._get_device_info_value = AsyncMock(return_value=raw_value)
     result = await device.get_cold_tank_outdoor_reset(device_info)
     device._get_device_info_value.assert_awaited_once_with("cdot", device_info)
-    assert result == 50
+    if expected_result == 'off':
+        assert result == 'off'
+    else:
+        assert isinstance(result, Temperature)
+        assert result.value == expected_result.value
+        assert result.unit == expected_result.unit
 
 @pytest.mark.get_params
 async def test_get_cold_tank_differential_smoke():

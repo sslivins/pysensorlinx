@@ -414,6 +414,7 @@ async def test_live_get_all_temperatures():
             device_id=device_id
         )
         temperatures = await sensorlinxdevice.get_temperatures()
+        pprint.pprint(temperatures)
         assert temperatures is not None, "Failed to fetch temperatures"
         assert isinstance(temperatures, dict), "Temperatures response is not a dict"
         for key, value in temperatures.items():
