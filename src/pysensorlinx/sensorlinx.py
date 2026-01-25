@@ -1615,7 +1615,7 @@ class SensorlinxDevice:
         """
         return await self._get_device_info_value(WARM_WEATHER_SHUTDOWN, device_info)
 
-    async def get_hot_tank_outdoor_reset(self, device_info: Optional[Dict] = None):
+    async def get_hot_tank_outdoor_reset(self, device_info: Optional[Dict] = None) -> Union[Temperature, str]:
         """
         Get the hot tank outdoor reset setting for the device.
 
@@ -1623,12 +1623,16 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The hot tank outdoor reset value.
+            Union[Temperature, str]: The hot tank outdoor reset as a Temperature (in Fahrenheit),
+                or 'off' if the feature is disabled (value is -41).
 
         Raises:
             RuntimeError: If the device or hot tank outdoor reset is not found.
         """
-        return await self._get_device_info_value(HOT_TANK_OUTDOOR_RESET, device_info)
+        value = await self._get_device_info_value(HOT_TANK_OUTDOOR_RESET, device_info)
+        if value == -41:
+            return 'off'
+        return Temperature(value, 'F')
 
     async def get_hot_tank_differential(self, device_info: Optional[Dict] = None):
         """
@@ -1690,7 +1694,7 @@ class SensorlinxDevice:
         """
         return await self._get_device_info_value(COLD_WEATHER_SHUTDOWN, device_info)
 
-    async def get_cold_tank_outdoor_reset(self, device_info: Optional[Dict] = None):
+    async def get_cold_tank_outdoor_reset(self, device_info: Optional[Dict] = None) -> Union[Temperature, str]:
         """
         Get the cold tank outdoor reset setting for the device.
 
@@ -1698,12 +1702,16 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The cold tank outdoor reset value.
+            Union[Temperature, str]: The cold tank outdoor reset as a Temperature (in Fahrenheit),
+                or 'off' if the feature is disabled (value is -41).
 
         Raises:
             RuntimeError: If the device or cold tank outdoor reset is not found.
         """
-        return await self._get_device_info_value(COLD_TANK_OUTDOOR_RESET, device_info)
+        value = await self._get_device_info_value(COLD_TANK_OUTDOOR_RESET, device_info)
+        if value == -41:
+            return 'off'
+        return Temperature(value, 'F')
 
     async def get_cold_tank_differential(self, device_info: Optional[Dict] = None):
         """
