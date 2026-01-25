@@ -1555,7 +1555,7 @@ class SensorlinxDevice:
         """
         return await self._get_device_info_value(STAGE_OFF_LAG_TIME, device_info)
 
-    async def get_rotate_cycles(self, device_info: Optional[Dict] = None):
+    async def get_rotate_cycles(self, device_info: Optional[Dict] = None) -> Union[int, str]:
         """
         Get the rotate cycles setting for the device.
 
@@ -1563,14 +1563,17 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The rotate cycles value.
+            Union[int, str]: The rotate cycles value, or 'off' if disabled (value is 0).
 
         Raises:
             RuntimeError: If the device or rotate cycles is not found.
         """
-        return await self._get_device_info_value(ROTATE_CYCLES, device_info)
+        value = await self._get_device_info_value(ROTATE_CYCLES, device_info)
+        if value == 0:
+            return 'off'
+        return value
 
-    async def get_rotate_time(self, device_info: Optional[Dict] = None):
+    async def get_rotate_time(self, device_info: Optional[Dict] = None) -> Union[int, str]:
         """
         Get the rotate time setting for the device.
 
@@ -1578,12 +1581,15 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The rotate time value.
+            Union[int, str]: The rotate time value, or 'off' if disabled (value is 0).
 
         Raises:
             RuntimeError: If the device or rotate time is not found.
         """
-        return await self._get_device_info_value(ROTATE_TIME, device_info)
+        value = await self._get_device_info_value(ROTATE_TIME, device_info)
+        if value == 0:
+            return 'off'
+        return value
 
     async def get_off_staging(self, device_info: Optional[Dict] = None):
         """

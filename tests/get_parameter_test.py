@@ -153,24 +153,41 @@ async def test_get_stage_off_lag_time_smoke():
     assert result == 3
 
 @pytest.mark.get_params
-async def test_get_rotate_cycles_smoke():
+@pytest.mark.parametrize(
+    "raw_value, expected_result",
+    [
+        # Value is 0, should return 'off'
+        (0, 'off'),
+        # Normal values, should return the integer
+        (4, 4),
+        (1, 1),
+        (240, 240),
+    ]
+)
+async def test_get_rotate_cycles(raw_value, expected_result):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"rotCy": 4}
-    device._get_device_info_value = AsyncMock(return_value=4)
+    device_info = {"rotCy": raw_value}
+    device._get_device_info_value = AsyncMock(return_value=raw_value)
     result = await device.get_rotate_cycles(device_info)
     device._get_device_info_value.assert_awaited_once_with("rotCy", device_info)
-    assert result == 4
+    assert result == expected_result
 
 @pytest.mark.get_params
-async def test_get_rotate_time_smoke():
+@pytest.mark.parametrize("api_value,expected", [
+    (0, 'off'),      # 0 means disabled
+    (12, 12),        # normal value
+    (1, 1),          # minimum enabled value
+    (240, 240),      # maximum value
+])
+async def test_get_rotate_time(api_value, expected):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"rotTi": 12}
-    device._get_device_info_value = AsyncMock(return_value=12)
+    device_info = {"rotTi": api_value}
+    device._get_device_info_value = AsyncMock(return_value=api_value)
     result = await device.get_rotate_time(device_info)
     device._get_device_info_value.assert_awaited_once_with("rotTi", device_info)
-    assert result == 12
+    assert result == expected
 
 @pytest.mark.get_params
 async def test_get_off_staging_smoke():
