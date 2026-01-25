@@ -183,14 +183,30 @@ async def test_get_off_staging_smoke():
     assert result is True
 
 @pytest.mark.get_params
-async def test_get_warm_weather_shutdown_smoke():
+@pytest.mark.parametrize(
+    "raw_value, expected_result",
+    [
+        # Value is 32, should return 'off'
+        (32, 'off'),
+        # Normal value, should return Temperature object
+        (75, Temperature(75, 'F')),
+        (34, Temperature(34, 'F')),
+        (180, Temperature(180, 'F')),
+    ]
+)
+async def test_get_warm_weather_shutdown(raw_value, expected_result):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"wwsd": 75}
-    device._get_device_info_value = AsyncMock(return_value=75)
+    device_info = {"wwsd": raw_value}
+    device._get_device_info_value = AsyncMock(return_value=raw_value)
     result = await device.get_warm_weather_shutdown(device_info)
     device._get_device_info_value.assert_awaited_once_with("wwsd", device_info)
-    assert result == 75
+    if expected_result == 'off':
+        assert result == 'off'
+    else:
+        assert isinstance(result, Temperature)
+        assert result.value == expected_result.value
+        assert result.unit == expected_result.unit
 
 @pytest.mark.get_params
 @pytest.mark.parametrize(
@@ -249,14 +265,30 @@ async def test_get_hot_tank_max_temp_smoke():
     assert result == 150
 
 @pytest.mark.get_params
-async def test_get_cold_weather_shutdown_smoke():
+@pytest.mark.parametrize(
+    "raw_value, expected_result",
+    [
+        # Value is 32, should return 'off'
+        (32, 'off'),
+        # Normal value, should return Temperature object
+        (40, Temperature(40, 'F')),
+        (33, Temperature(33, 'F')),
+        (119, Temperature(119, 'F')),
+    ]
+)
+async def test_get_cold_weather_shutdown(raw_value, expected_result):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"cwsd": 40}
-    device._get_device_info_value = AsyncMock(return_value=40)
+    device_info = {"cwsd": raw_value}
+    device._get_device_info_value = AsyncMock(return_value=raw_value)
     result = await device.get_cold_weather_shutdown(device_info)
     device._get_device_info_value.assert_awaited_once_with("cwsd", device_info)
-    assert result == 40
+    if expected_result == 'off':
+        assert result == 'off'
+    else:
+        assert isinstance(result, Temperature)
+        assert result.value == expected_result.value
+        assert result.unit == expected_result.unit
 
 @pytest.mark.get_params
 @pytest.mark.parametrize(
