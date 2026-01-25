@@ -1600,7 +1600,7 @@ class SensorlinxDevice:
         """
         return await self._get_device_info_value(OFF_STAGING, device_info)
 
-    async def get_warm_weather_shutdown(self, device_info: Optional[Dict] = None):
+    async def get_warm_weather_shutdown(self, device_info: Optional[Dict] = None) -> Union[Temperature, str]:
         """
         Get the warm weather shutdown setting for the device.
 
@@ -1608,12 +1608,16 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The warm weather shutdown value.
+            Union[Temperature, str]: The warm weather shutdown as a Temperature (in Fahrenheit),
+                or 'off' if the feature is disabled (value is 32).
 
         Raises:
             RuntimeError: If the device or warm weather shutdown is not found.
         """
-        return await self._get_device_info_value(WARM_WEATHER_SHUTDOWN, device_info)
+        value = await self._get_device_info_value(WARM_WEATHER_SHUTDOWN, device_info)
+        if value == 32:
+            return 'off'
+        return Temperature(value, 'F')
 
     async def get_hot_tank_outdoor_reset(self, device_info: Optional[Dict] = None) -> Union[Temperature, str]:
         """
@@ -1679,7 +1683,7 @@ class SensorlinxDevice:
         """
         return await self._get_device_info_value(HOT_TANK_MAX_TEMP, device_info)
 
-    async def get_cold_weather_shutdown(self, device_info: Optional[Dict] = None):
+    async def get_cold_weather_shutdown(self, device_info: Optional[Dict] = None) -> Union[Temperature, str]:
         """
         Get the cold weather shutdown setting for the device.
 
@@ -1687,12 +1691,16 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The cold weather shutdown value.
+            Union[Temperature, str]: The cold weather shutdown as a Temperature (in Fahrenheit),
+                or 'off' if the feature is disabled (value is 32).
 
         Raises:
             RuntimeError: If the device or cold weather shutdown is not found.
         """
-        return await self._get_device_info_value(COLD_WEATHER_SHUTDOWN, device_info)
+        value = await self._get_device_info_value(COLD_WEATHER_SHUTDOWN, device_info)
+        if value == 32:
+            return 'off'
+        return Temperature(value, 'F')
 
     async def get_cold_tank_outdoor_reset(self, device_info: Optional[Dict] = None) -> Union[Temperature, str]:
         """
