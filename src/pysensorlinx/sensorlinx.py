@@ -126,6 +126,55 @@ class Temperature:
         symbol = "°C" if self.unit == "C" else "°F"
         return f"{self.value:.2f}{symbol}"
 
+
+class TemperatureDelta:
+    """
+    Represents a temperature difference (delta) rather than an absolute temperature.
+    
+    Unlike absolute temperatures, deltas convert without the +32/-32 offset:
+    - Absolute: °F = °C × 9/5 + 32
+    - Delta:    ΔF = ΔC × 9/5 (no offset)
+    
+    Example: A 4°F differential equals a 2.22°C differential (not -15.56°C).
+    """
+    def __init__(self, value: float, unit: str = "C"):
+        if unit is None:
+            raise ValueError("Unit must be 'C' for Celsius or 'F' for Fahrenheit")
+        unit = unit.upper()
+        if unit not in ("C", "F"):
+            raise ValueError("Unit must be 'C' for Celsius or 'F' for Fahrenheit")
+        try:
+            self.value = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Temperature delta value must be a float or convertible to float")
+        self.unit = unit
+
+    def to_celsius(self) -> float:
+        """Convert delta to Celsius. ΔC = ΔF × 5/9 (no offset)."""
+        if self.unit == "C":
+            return self.value
+        return self.value * 5.0 / 9.0
+
+    def to_fahrenheit(self) -> float:
+        """Convert delta to Fahrenheit. ΔF = ΔC × 9/5 (no offset)."""
+        if self.unit == "F":
+            return self.value
+        return self.value * 9.0 / 5.0
+
+    def as_celsius(self):
+        return TemperatureDelta(self.to_celsius(), "C")
+
+    def as_fahrenheit(self):
+        return TemperatureDelta(self.to_fahrenheit(), "F")
+
+    def __repr__(self):
+        return f"TemperatureDelta({self.value:.2f}, '{self.unit}')"
+
+    def __str__(self):
+        symbol = "Δ°C" if self.unit == "C" else "Δ°F"
+        return f"{self.value:.2f}{symbol}"
+
+
 class Sensorlinx:
 
     def __init__(self): 
@@ -339,16 +388,16 @@ class Sensorlinx:
         off_staging: Optional[bool] = None,
         heat_cool_switch_delay: Optional[int] = None,
         hot_tank_outdoor_reset: Optional[Union[Temperature, str]] = None,
-        hot_tank_differential: Optional[Temperature] = None,
+        hot_tank_differential: Optional[TemperatureDelta] = None,
         hot_tank_min_temp: Optional[Temperature] = None,
         hot_tank_max_temp: Optional[Temperature] = None,
         cold_tank_outdoor_reset: Optional[Union[Temperature, str]] = None,
-        cold_tank_differential: Optional[Temperature] = None,
+        cold_tank_differential: Optional[TemperatureDelta] = None,
         cold_tank_min_temp: Optional[Temperature] = None,
         cold_tank_max_temp: Optional[Temperature] = None,
         backup_lag_time: Optional[Union[int, str]] = None,
         backup_temp: Optional[Union[Temperature, str]] = None,
-        backup_differential: Optional[Union[Temperature, str]] = None,
+        backup_differential: Optional[Union[TemperatureDelta, str]] = None,
         backup_only_outdoor_temp: Optional[Union[Temperature, str]] = None,
         backup_only_tank_temp: Optional[Union[Temperature, str]] = None
     ) -> None:
@@ -374,17 +423,17 @@ class Sensorlinx:
             heat_cool_switch_delay (Optional[int]): Delay in seconds between switching from heat to cool (30-600).
             warm_weather_shutdown (Optional[Temperature or str]): when in heating mode shuts the heat pump off above this temperature (34 to 180F) or 'off' to disable.
             hot_tank_outdoor_reset (Optional[Union[Temperature, str]]): temperature for outdoor reset in °F (-40 to 127) or 'off' to disable.
-            hot_tank_differential (Optional[Temperature]): controlling how far above or below the target temperature a demand is triggered. (2-100F)
+            hot_tank_differential (Optional[TemperatureDelta]): controlling how far above or below the target temperature a demand is triggered. (2-100F)
             hot_tank_min_temp (Optional[Temperature]): The minimum tank temperature for the hot tank (35°F to 200°F)
             hot_tank_max_temp (Optional[Temperature]): The maximum tank temperature for the hot tank (35°F to 200°F)
             cold_weather_shutdown (Optional[Temperature or str]): when in cooling mode shuts the heat pump off below this temperature, (33F to 119F) or 'off' to disable.
             cold_tank_outdoor_reset (Optional[Union[Temperature, str]]): Design temperature for outdoor reset in (0F to 119F) or 'off' to disable.
-            cold_tank_differential (Optional[Temperature]): The cold differential to set for the device (2°F to 100°F)
+            cold_tank_differential (Optional[TemperatureDelta]): The cold differential to set for the device (2°F to 100°F)
             cold_tank_min_temp (Optional[Temperature]): The minimum tank temperature for the cold tank (35°F to 200°F)
             cold_tank_max_temp (Optional[Temperature]): The maximum tank temperature for the cold tank (35°F to 200°F)
             backup_lag_time (Optional[Union[int, str]]): Minimum lag time between heat pump stages and backup boiler; accepts "off" or integer 1–240 (minutes). Default: "off".
             backup_temp (Optional[Union[Temperature, str]]): The outdoor temperature at which the backup mode is activated (2F to 100F) or 'off' to disable.
-            backup_differential (Optional[Union[Temperature, str]]): Tank temperature difference below target at which backup boiler activates, overriding backup time if needed. Use "off" to disable, or a Temperature between 2°F and 100°F.
+            backup_differential (Optional[Union[TemperatureDelta, str]]): Tank temperature difference below target at which backup boiler activates, overriding backup time if needed. Use "off" to disable, or a TemperatureDelta between 2°F and 100°F.
             backup_only_outdoor_temp (Optional[Union[Temperature, str]]): The outdoor temperature below which the backup will only run (-40F to 127F) or 'off' to disable.
             backup_only_tank_temp (Union[Temperature, str]): The maximum tank temperature for heat pumps to run at. Once exceeded, only the backup will heat the tank to the target temperature. Should be set lower than the hot tank target temperature (33°F to 200°F or "off" to disable)
 
@@ -523,15 +572,15 @@ class Sensorlinx:
                 raise InvalidParameterError("Hot tank outdoor reset must be a Temperature instance or 'off'.")
             
         if hot_tank_differential is not None:
-            if isinstance(hot_tank_differential, Temperature):
+            if isinstance(hot_tank_differential, TemperatureDelta):
                 temp_f = hot_tank_differential.to_fahrenheit()
                 if not (2 <= temp_f <= 100):
                     _LOGGER.error("Hot tank differential must be between 2°F and 100°F.")
                     raise InvalidParameterError("Hot tank differential must be between 2°F and 100°F.")
                 payload[HOT_TANK_DIFFERENTIAL] = round(temp_f)
             else:
-                _LOGGER.error("Hot tank differential must be a Temperature instance.")
-                raise InvalidParameterError("Hot tank differential must be a Temperature instance.")
+                _LOGGER.error("Hot tank differential must be a TemperatureDelta instance.")
+                raise InvalidParameterError("Hot tank differential must be a TemperatureDelta instance.")
             
         if hot_tank_min_temp is not None:
             if isinstance(hot_tank_min_temp, Temperature):
@@ -583,15 +632,15 @@ class Sensorlinx:
                 raise InvalidParameterError("Cold tank outdoor reset must be a Temperature instance or 'off'.")
             
         if cold_tank_differential is not None:
-            if isinstance(cold_tank_differential, Temperature):
+            if isinstance(cold_tank_differential, TemperatureDelta):
                 temp_f = cold_tank_differential.to_fahrenheit()
                 if not (2 <= temp_f <= 100):
                     _LOGGER.error("Cold tank differential must be between 2°F and 100°F.")
                     raise InvalidParameterError("Cold tank differential must be between 2°F and 100°F.")
                 payload[COLD_TANK_DIFFERENTIAL] = round(temp_f)
             else:
-                _LOGGER.error("Cold tank differential must be a Temperature instance.")
-                raise InvalidParameterError("Cold tank differential must be a Temperature instance.")
+                _LOGGER.error("Cold tank differential must be a TemperatureDelta instance.")
+                raise InvalidParameterError("Cold tank differential must be a TemperatureDelta instance.")
             
         if cold_tank_min_temp is not None:
             if isinstance(cold_tank_min_temp, Temperature):
@@ -647,15 +696,15 @@ class Sensorlinx:
         if backup_differential is not None:
             if isinstance(backup_differential, str) and backup_differential.lower() == "off":
                 payload[BACKUP_DIFFERENTIAL] = 0
-            elif isinstance(backup_differential, Temperature):
+            elif isinstance(backup_differential, TemperatureDelta):
                 temp_f = backup_differential.to_fahrenheit()
                 if not (2 <= temp_f <= 100):
                     _LOGGER.error("Backup differential must be between 2°F and 100°F.")
                     raise InvalidParameterError("Backup differential must be between 2°F and 100°F.")
                 payload[BACKUP_DIFFERENTIAL] = round(temp_f)
             else:
-                _LOGGER.error("Backup differential must be a Temperature instance or 'off'.")
-                raise InvalidParameterError("Backup differential must be a Temperature instance or 'off'.")
+                _LOGGER.error("Backup differential must be a TemperatureDelta instance or 'off'.")
+                raise InvalidParameterError("Backup differential must be a TemperatureDelta instance or 'off'.")
             
         if backup_only_outdoor_temp is not None:
             if isinstance(backup_only_outdoor_temp, str) and backup_only_outdoor_temp.lower() == "off":
@@ -1043,18 +1092,18 @@ class SensorlinxDevice:
             self.building_id, self.device_id, hot_tank_outdoor_reset=value
         )
         
-    async def set_hot_tank_differential(self, value: Temperature) -> None:
+    async def set_hot_tank_differential(self, value: TemperatureDelta) -> None:
         """
         Set the heat differential for the hot tank.
 
-        This temperature sets the desired hot tank differential. For example, a differential of 4°F will allow for 2 degrees above
+        This temperature delta sets the desired hot tank differential. For example, a differential of 4°F will allow for 2 degrees above
         and/or 2 degrees below the desired temperature before a demand is present.
 
         Args:
-            value (Temperature): The differential as a Temperature object.
+            value (TemperatureDelta): The differential as a TemperatureDelta object.
 
         Raises:
-            InvalidParameterError: If the value is not a Temperature instance.
+            InvalidParameterError: If the value is not a TemperatureDelta instance.
             LoginError: If the API call fails for login reasons.
             RuntimeError: If the API call fails for other reasons.
         """
@@ -1174,15 +1223,15 @@ class SensorlinxDevice:
             self.building_id, self.device_id, cold_tank_outdoor_reset=value
         )
         
-    async def set_cold_tank_differential(self, value: Temperature) -> None:
+    async def set_cold_tank_differential(self, value: TemperatureDelta) -> None:
         """
         Set the cold tank differential for the device.
 
-        This temperature sets the desired cold tank differential. For example, a differential of 4°F will allow for 2 degrees above
+        This temperature delta sets the desired cold tank differential. For example, a differential of 4°F will allow for 2 degrees above
         and/or 2 degrees below the desired temperature before a demand is present. Default 8F
 
         Args:
-            value (Temperature): The differential as a Temperature object.
+            value (TemperatureDelta): The differential as a TemperatureDelta object.
 
         Raises:
             InvalidParameterError: If the value is invalid (validation is handled in set_device_parameter).
@@ -1301,17 +1350,17 @@ class SensorlinxDevice:
             self.building_id, self.device_id, backup_temp=value
         )
         
-    async def set_backup_differential(self, value: Union[Temperature, str]) -> None:
+    async def set_backup_differential(self, value: Union[TemperatureDelta, str]) -> None:
         """
         Set the backup differential for the device.
 
         This setting is used to set a differential on the tank at which you would like the backup to come on.
         This setting will override the backup time settings and bring the backup on instantaneously if the target is at or below the differential.
         (eg. Tank temperature of 115°F and a backup differential of 10°F. The backup boiler will come on at 105°F providing all of the heat pumps are already on)
-        Allowed values: "off" (to disable) or a Temperature between 2°F and 100°F.
+        Allowed values: "off" (to disable) or a TemperatureDelta between 2°F and 100°F.
 
         Args:
-            value (Temperature or str): The backup differential as a Temperature object with a valid range of 2 to 100F or "off" to disable.
+            value (TemperatureDelta or str): The backup differential as a TemperatureDelta object with a valid range of 2 to 100F or "off" to disable.
 
         Raises:
             InvalidParameterError: If the value is invalid (validation is handled elsewhere).        
@@ -1644,7 +1693,7 @@ class SensorlinxDevice:
             return 'off'
         return Temperature(value, 'F')
 
-    async def get_hot_tank_differential(self, device_info: Optional[Dict] = None):
+    async def get_hot_tank_differential(self, device_info: Optional[Dict] = None) -> TemperatureDelta:
         """
         Get the hot tank differential setting for the device.
 
@@ -1652,12 +1701,13 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The hot tank differential value.
+            TemperatureDelta: The hot tank differential value as a TemperatureDelta (stored in °F).
 
         Raises:
             RuntimeError: If the device or hot tank differential is not found.
         """
-        return await self._get_device_info_value(HOT_TANK_DIFFERENTIAL, device_info)
+        value = await self._get_device_info_value(HOT_TANK_DIFFERENTIAL, device_info)
+        return TemperatureDelta(value, 'F')
 
     async def get_hot_tank_min_temp(self, device_info: Optional[Dict] = None):
         """
@@ -1727,7 +1777,7 @@ class SensorlinxDevice:
             return 'off'
         return Temperature(value, 'F')
 
-    async def get_cold_tank_differential(self, device_info: Optional[Dict] = None):
+    async def get_cold_tank_differential(self, device_info: Optional[Dict] = None) -> TemperatureDelta:
         """
         Get the cold tank differential setting for the device.
 
@@ -1735,12 +1785,13 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The cold tank differential value.
+            TemperatureDelta: The cold tank differential value as a TemperatureDelta (stored in °F).
 
         Raises:
             RuntimeError: If the device or cold tank differential is not found.
         """
-        return await self._get_device_info_value(COLD_TANK_DIFFERENTIAL, device_info)
+        value = await self._get_device_info_value(COLD_TANK_DIFFERENTIAL, device_info)
+        return TemperatureDelta(value, 'F')
 
     async def get_cold_tank_min_temp(self, device_info: Optional[Dict] = None):
         """
@@ -1808,7 +1859,7 @@ class SensorlinxDevice:
             return 'off'
         return value
 
-    async def get_backup_differential(self, device_info: Optional[Dict] = None) -> Union[int, str]:
+    async def get_backup_differential(self, device_info: Optional[Dict] = None) -> Union[TemperatureDelta, str]:
         """
         Get the backup differential setting for the device.
 
@@ -1816,7 +1867,7 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            Union[int, str]: The backup differential value, or 'off' if disabled (value is 0).
+            Union[TemperatureDelta, str]: The backup differential value as a TemperatureDelta, or 'off' if disabled (value is 0).
 
         Raises:
             RuntimeError: If the device or backup differential is not found.
@@ -1824,7 +1875,7 @@ class SensorlinxDevice:
         value = await self._get_device_info_value(BACKUP_DIFFERENTIAL, device_info)
         if value == 0:
             return 'off'
-        return value
+        return TemperatureDelta(value, 'F')
 
     async def get_backup_only_outdoor_temp(self, device_info: Optional[Dict] = None) -> Union[int, str]:
         """
