@@ -271,7 +271,9 @@ async def test_get_hot_tank_min_temp_smoke():
     device._get_device_info_value = AsyncMock(return_value=100)
     result = await device.get_hot_tank_min_temp(device_info)
     device._get_device_info_value.assert_awaited_once_with("dbt", device_info)
-    assert result == 100
+    assert isinstance(result, Temperature)
+    assert result.value == 100
+    assert result.unit == 'F'
 
 @pytest.mark.get_params
 async def test_get_hot_tank_max_temp_smoke():
@@ -281,7 +283,9 @@ async def test_get_hot_tank_max_temp_smoke():
     device._get_device_info_value = AsyncMock(return_value=150)
     result = await device.get_hot_tank_max_temp(device_info)
     device._get_device_info_value.assert_awaited_once_with("mbt", device_info)
-    assert result == 150
+    assert isinstance(result, Temperature)
+    assert result.value == 150
+    assert result.unit == 'F'
 
 @pytest.mark.get_params
 @pytest.mark.parametrize(
@@ -355,7 +359,9 @@ async def test_get_cold_tank_min_temp_smoke():
     device._get_device_info_value = AsyncMock(return_value=45)
     result = await device.get_cold_tank_min_temp(device_info)
     device._get_device_info_value.assert_awaited_once_with("dst", device_info)
-    assert result == 45
+    assert isinstance(result, Temperature)
+    assert result.value == 45
+    assert result.unit == 'F'
 
 @pytest.mark.get_params
 async def test_get_cold_tank_max_temp_smoke():
@@ -365,7 +371,9 @@ async def test_get_cold_tank_max_temp_smoke():
     device._get_device_info_value = AsyncMock(return_value=55)
     result = await device.get_cold_tank_max_temp(device_info)
     device._get_device_info_value.assert_awaited_once_with("mst", device_info)
-    assert result == 55
+    assert isinstance(result, Temperature)
+    assert result.value == 55
+    assert result.unit == 'F'
 
 @pytest.mark.get_params
 @pytest.mark.parametrize("api_value,expected", [
@@ -386,9 +394,9 @@ async def test_get_backup_lag_time(api_value, expected):
 @pytest.mark.get_params
 @pytest.mark.parametrize("api_value,expected", [
     (0, 'off'),      # 0 means disabled
-    (30, 30),        # normal value
-    (2, 2),          # minimum enabled value
-    (100, 100),      # maximum value
+    (30, Temperature(30, 'F')),        # normal value
+    (2, Temperature(2, 'F')),          # minimum enabled value
+    (100, Temperature(100, 'F')),      # maximum value
 ])
 async def test_get_backup_temp(api_value, expected):
     sensorlinx = Sensorlinx()
@@ -397,7 +405,12 @@ async def test_get_backup_temp(api_value, expected):
     device._get_device_info_value = AsyncMock(return_value=api_value)
     result = await device.get_backup_temp(device_info)
     device._get_device_info_value.assert_awaited_once_with("bkTemp", device_info)
-    assert result == expected
+    if expected == 'off':
+        assert result == 'off'
+    else:
+        assert isinstance(result, Temperature)
+        assert result.value == expected.value
+        assert result.unit == expected.unit
 
 @pytest.mark.get_params
 @pytest.mark.parametrize("api_value,expected", [
@@ -423,9 +436,9 @@ async def test_get_backup_differential(api_value, expected):
 @pytest.mark.get_params
 @pytest.mark.parametrize("api_value,expected", [
     (-41, 'off'),    # -41 means disabled
-    (10, 10),        # normal value
-    (-40, -40),      # minimum enabled value
-    (127, 127),      # maximum value
+    (10, Temperature(10, 'F')),        # normal value
+    (-40, Temperature(-40, 'F')),      # minimum enabled value
+    (127, Temperature(127, 'F')),      # maximum value
 ])
 async def test_get_backup_only_outdoor_temp(api_value, expected):
     sensorlinx = Sensorlinx()
@@ -434,14 +447,19 @@ async def test_get_backup_only_outdoor_temp(api_value, expected):
     device._get_device_info_value = AsyncMock(return_value=api_value)
     result = await device.get_backup_only_outdoor_temp(device_info)
     device._get_device_info_value.assert_awaited_once_with("bkOd", device_info)
-    assert result == expected
+    if expected == 'off':
+        assert result == 'off'
+    else:
+        assert isinstance(result, Temperature)
+        assert result.value == expected.value
+        assert result.unit == expected.unit
 
 @pytest.mark.get_params
 @pytest.mark.parametrize("api_value,expected", [
     (32, 'off'),     # 32 means disabled
-    (120, 120),      # normal value
-    (33, 33),        # minimum enabled value
-    (200, 200),      # maximum value
+    (120, Temperature(120, 'F')),      # normal value
+    (33, Temperature(33, 'F')),        # minimum enabled value
+    (200, Temperature(200, 'F')),      # maximum value
 ])
 async def test_get_backup_only_tank_temp(api_value, expected):
     sensorlinx = Sensorlinx()
@@ -450,7 +468,12 @@ async def test_get_backup_only_tank_temp(api_value, expected):
     device._get_device_info_value = AsyncMock(return_value=api_value)
     result = await device.get_backup_only_tank_temp(device_info)
     device._get_device_info_value.assert_awaited_once_with("bkTk", device_info)
-    assert result == expected
+    if expected == 'off':
+        assert result == 'off'
+    else:
+        assert isinstance(result, Temperature)
+        assert result.value == expected.value
+        assert result.unit == expected.unit
 
 @pytest.mark.get_params
 async def test_get_firmware_version_smoke():
