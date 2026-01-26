@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from pysensorlinx import Sensorlinx, SensorlinxDevice, Temperature, InvalidParameterError
+from pysensorlinx import Sensorlinx, SensorlinxDevice, Temperature, TemperatureDelta, InvalidParameterError
 
 @pytest.fixture
 def sensorlinx_device_with_patch():
@@ -523,7 +523,7 @@ async def test_set_hot_tank_outdoor_reset_invalid_type(sensorlinx_device_with_pa
 async def test_set_hot_tank_differential_valid_fahrenheit(sensorlinx_device_with_patch, fahrenheit, expected_json):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(fahrenheit, "F")
+  temp = TemperatureDelta(fahrenheit, "F")
   await device.set_hot_tank_differential(temp)
 
   assert sensorlinx._session.patch.call_count == 1
@@ -532,14 +532,14 @@ async def test_set_hot_tank_differential_valid_fahrenheit(sensorlinx_device_with
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
-  (1.1, 34),   # 1.1°C ≈ 34°F (rounded)
-  (10, 50),    # 10°C ≈ 50°F
-  (37.7, 100), # 37.8°C ≈ 100°F
+  (1.2, 2),    # 1.2°C delta ≈ 2.16°F delta (rounded to 2)
+  (10, 18),    # 10°C delta ≈ 18°F delta
+  (55.5, 100), # 55.5°C delta ≈ 100°F delta
 ])
 async def test_set_hot_tank_differential_valid_celsius(sensorlinx_device_with_patch, celsius, expected_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(celsius, "C")
+  temp = TemperatureDelta(celsius, "C")
   await device.set_hot_tank_differential(temp)
 
   assert sensorlinx._session.patch.call_count == 1
@@ -551,17 +551,17 @@ async def test_set_hot_tank_differential_valid_celsius(sensorlinx_device_with_pa
 async def test_set_hot_tank_differential_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(invalid_f, "F")
+  temp = TemperatureDelta(invalid_f, "F")
   with pytest.raises(InvalidParameterError) as excinfo:
     await device.set_hot_tank_differential(temp)
   assert str(excinfo.value) == "Hot tank differential must be between 2°F and 100°F."
 
 @pytest.mark.set_params
-@pytest.mark.parametrize("invalid_c", [-100, -17, 38, 100, 1000])
+@pytest.mark.parametrize("invalid_c", [-100, 0, 56, 100, 1000])
 async def test_set_hot_tank_differential_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(invalid_c, "C")
+  temp = TemperatureDelta(invalid_c, "C")
   with pytest.raises(InvalidParameterError) as excinfo:
     await device.set_hot_tank_differential(temp)
   assert str(excinfo.value) == "Hot tank differential must be between 2°F and 100°F."
@@ -574,20 +574,21 @@ async def test_set_hot_tank_differential_invalid_unit(sensorlinx_device_with_pat
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
   with pytest.raises(ValueError) as excinfo:
-    temp = Temperature(10, invalid_unit)
+    temp = TemperatureDelta(10, invalid_unit)
     await device.set_hot_tank_differential(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
   
 @pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
-  (123, "Hot tank differential must be a Temperature instance."),
-  (45.6, "Hot tank differential must be a Temperature instance."),
-  (True, "Hot tank differential must be a Temperature instance."),
-  (False, "Hot tank differential must be a Temperature instance."),
-  ("100F", "Hot tank differential must be a Temperature instance."),
-  ("180", "Hot tank differential must be a Temperature instance."),
-  (["F", 100], "Hot tank differential must be a Temperature instance."),
-  ({"value": 100, "unit": "F"}, "Hot tank differential must be a Temperature instance."),
+  (123, "Hot tank differential must be a TemperatureDelta instance."),
+  (45.6, "Hot tank differential must be a TemperatureDelta instance."),
+  (True, "Hot tank differential must be a TemperatureDelta instance."),
+  (False, "Hot tank differential must be a TemperatureDelta instance."),
+  ("100F", "Hot tank differential must be a TemperatureDelta instance."),
+  ("180", "Hot tank differential must be a TemperatureDelta instance."),
+  (["F", 100], "Hot tank differential must be a TemperatureDelta instance."),
+  ({"value": 100, "unit": "F"}, "Hot tank differential must be a TemperatureDelta instance."),
+  (Temperature(10, "F"), "Hot tank differential must be a TemperatureDelta instance."),
   (None, "At least one optional parameter must be provided."),
 ])
 async def test_set_hot_tank_differential_non_temperature_type(sensorlinx_device_with_patch, invalid_input, expected_error):
@@ -985,7 +986,7 @@ async def test_set_cold_tank_outdoor_reset_invalid_type(sensorlinx_device_with_p
 async def test_set_cold_tank_differential_valid_fahrenheit(sensorlinx_device_with_patch, fahrenheit, expected_json):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(fahrenheit, "F")
+  temp = TemperatureDelta(fahrenheit, "F")
   await device.set_cold_tank_differential(temp)
 
   assert sensorlinx._session.patch.call_count == 1
@@ -994,14 +995,14 @@ async def test_set_cold_tank_differential_valid_fahrenheit(sensorlinx_device_wit
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
-  (1.1, 34),    # 1.1°C ≈ 34°F (rounded)
-  (10, 50),     # 10°C ≈ 50°F
-  (37.7, 100),  # 37.7°C ≈ 100°F
+  (1.2, 2),     # 1.2°C delta ≈ 2.16°F delta (rounded to 2)
+  (10, 18),     # 10°C delta ≈ 18°F delta
+  (55.5, 100),  # 55.5°C delta ≈ 100°F delta
 ])
 async def test_set_cold_tank_differential_valid_celsius(sensorlinx_device_with_patch, celsius, expected_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(celsius, "C")
+  temp = TemperatureDelta(celsius, "C")
   await device.set_cold_tank_differential(temp)
 
   assert sensorlinx._session.patch.call_count == 1
@@ -1013,17 +1014,17 @@ async def test_set_cold_tank_differential_valid_celsius(sensorlinx_device_with_p
 async def test_set_cold_tank_differential_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(invalid_f, "F")
+  temp = TemperatureDelta(invalid_f, "F")
   with pytest.raises(InvalidParameterError) as excinfo:
     await device.set_cold_tank_differential(temp)
   assert str(excinfo.value) == "Cold tank differential must be between 2°F and 100°F."
 
 @pytest.mark.set_params
-@pytest.mark.parametrize("invalid_c", [-100, -17, 38, 100, 1000])
+@pytest.mark.parametrize("invalid_c", [-100, 0, 56, 100, 1000])
 async def test_set_cold_tank_differential_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(invalid_c, "C")
+  temp = TemperatureDelta(invalid_c, "C")
   with pytest.raises(InvalidParameterError) as excinfo:
     await device.set_cold_tank_differential(temp)
   assert str(excinfo.value) == "Cold tank differential must be between 2°F and 100°F."
@@ -1036,20 +1037,21 @@ async def test_set_cold_tank_differential_invalid_unit(sensorlinx_device_with_pa
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
   with pytest.raises(ValueError) as excinfo:
-    temp = Temperature(10, invalid_unit)
+    temp = TemperatureDelta(10, invalid_unit)
     await device.set_cold_tank_differential(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
-  (123, "Cold tank differential must be a Temperature instance."),
-  (45.6, "Cold tank differential must be a Temperature instance."),
-  (True, "Cold tank differential must be a Temperature instance."),
-  (False, "Cold tank differential must be a Temperature instance."),
-  ("100F", "Cold tank differential must be a Temperature instance."),
-  ("180", "Cold tank differential must be a Temperature instance."),
-  (["F", 100], "Cold tank differential must be a Temperature instance."),
-  ({"value": 100, "unit": "F"}, "Cold tank differential must be a Temperature instance."),
+  (123, "Cold tank differential must be a TemperatureDelta instance."),
+  (45.6, "Cold tank differential must be a TemperatureDelta instance."),
+  (True, "Cold tank differential must be a TemperatureDelta instance."),
+  (False, "Cold tank differential must be a TemperatureDelta instance."),
+  ("100F", "Cold tank differential must be a TemperatureDelta instance."),
+  ("180", "Cold tank differential must be a TemperatureDelta instance."),
+  (["F", 100], "Cold tank differential must be a TemperatureDelta instance."),
+  ({"value": 100, "unit": "F"}, "Cold tank differential must be a TemperatureDelta instance."),
+  (Temperature(10, "F"), "Cold tank differential must be a TemperatureDelta instance."),
   (None, "At least one optional parameter must be provided."),
 ])
 async def test_set_cold_tank_differential_non_temperature_type(sensorlinx_device_with_patch, invalid_input, expected_error):
@@ -1392,9 +1394,9 @@ async def test_set_backup_temp_invalid_type(sensorlinx_device_with_patch, invali
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("value,expected", [
-  (Temperature(2, "F"), {"bkDif": 2}),
-  (Temperature(50, "F"), {"bkDif": 50}),
-  (Temperature(100, "F"), {"bkDif": 100}),
+  (TemperatureDelta(2, "F"), {"bkDif": 2}),
+  (TemperatureDelta(50, "F"), {"bkDif": 50}),
+  (TemperatureDelta(100, "F"), {"bkDif": 100}),
   ("off", {"bkDif": 0}),
   ("OFF", {"bkDif": 0}),
   ("Off", {"bkDif": 0}),
@@ -1410,14 +1412,14 @@ async def test_set_backup_differential_valid(sensorlinx_device_with_patch, value
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("celsius,expected_f", [
-  (1.1, 34),    # 1.1°C ≈ 34°F (rounded)
-  (10, 50),     # 10°C ≈ 50°F
-  (37.7, 100),  # 37.8°C ≈ 100°F
+  (1.2, 2),     # 1.2°C delta ≈ 2.16°F delta (rounded to 2)
+  (10, 18),     # 10°C delta ≈ 18°F delta
+  (55.5, 100),  # 55.5°C delta ≈ 100°F delta
 ])
 async def test_set_backup_differential_valid_celsius(sensorlinx_device_with_patch, celsius, expected_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(celsius, "C")
+  temp = TemperatureDelta(celsius, "C")
   await device.set_backup_differential(temp)
 
   assert sensorlinx._session.patch.call_count == 1
@@ -1429,17 +1431,17 @@ async def test_set_backup_differential_valid_celsius(sensorlinx_device_with_patc
 async def test_set_backup_differential_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(invalid_f, "F")
+  temp = TemperatureDelta(invalid_f, "F")
   with pytest.raises(InvalidParameterError) as excinfo:
     await device.set_backup_differential(temp)
   assert str(excinfo.value) == "Backup differential must be between 2°F and 100°F."
 
 @pytest.mark.set_params
-@pytest.mark.parametrize("invalid_c", [-100, -17, 38, 100, 1000])
+@pytest.mark.parametrize("invalid_c", [-100, 0, 56, 100, 1000])
 async def test_set_backup_differential_invalid_celsius(sensorlinx_device_with_patch, invalid_c):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
-  temp = Temperature(invalid_c, "C")
+  temp = TemperatureDelta(invalid_c, "C")
   with pytest.raises(InvalidParameterError) as excinfo:
     await device.set_backup_differential(temp)
   assert str(excinfo.value) == "Backup differential must be between 2°F and 100°F."
@@ -1452,18 +1454,19 @@ async def test_set_backup_differential_invalid_unit(sensorlinx_device_with_patch
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
 
   with pytest.raises(ValueError) as excinfo:
-    temp = Temperature(10, invalid_unit)
+    temp = TemperatureDelta(10, invalid_unit)
     await device.set_backup_differential(temp)
   assert str(excinfo.value) == "Unit must be 'C' for Celsius or 'F' for Fahrenheit"
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("invalid_input,expected_error", [
-  (123, "Backup differential must be a Temperature instance or 'off'."),
-  (45.6, "Backup differential must be a Temperature instance or 'off'."),
-  (True, "Backup differential must be a Temperature instance or 'off'."),
-  (False, "Backup differential must be a Temperature instance or 'off'."),
-  (["F", 100], "Backup differential must be a Temperature instance or 'off'."),
-  ({"value": 100, "unit": "F"}, "Backup differential must be a Temperature instance or 'off'."),
+  (123, "Backup differential must be a TemperatureDelta instance or 'off'."),
+  (45.6, "Backup differential must be a TemperatureDelta instance or 'off'."),
+  (True, "Backup differential must be a TemperatureDelta instance or 'off'."),
+  (False, "Backup differential must be a TemperatureDelta instance or 'off'."),
+  (["F", 100], "Backup differential must be a TemperatureDelta instance or 'off'."),
+  ({"value": 100, "unit": "F"}, "Backup differential must be a TemperatureDelta instance or 'off'."),
+  (Temperature(10, "F"), "Backup differential must be a TemperatureDelta instance or 'off'."),
   (None, "At least one optional parameter must be provided."),
 ])
 async def test_set_backup_differential_invalid_type(sensorlinx_device_with_patch, invalid_input, expected_error):

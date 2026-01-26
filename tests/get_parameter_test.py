@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock
 import datetime
-from pysensorlinx import Sensorlinx, SensorlinxDevice, Temperature
+from pysensorlinx import Sensorlinx, SensorlinxDevice, Temperature, TemperatureDelta
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -259,7 +259,9 @@ async def test_get_hot_tank_differential_smoke():
     device._get_device_info_value = AsyncMock(return_value=10)
     result = await device.get_hot_tank_differential(device_info)
     device._get_device_info_value.assert_awaited_once_with("htDif", device_info)
-    assert result == 10
+    assert isinstance(result, TemperatureDelta)
+    assert result.value == 10
+    assert result.unit == 'F'
 
 @pytest.mark.get_params
 async def test_get_hot_tank_min_temp_smoke():
@@ -341,7 +343,9 @@ async def test_get_cold_tank_differential_smoke():
     device._get_device_info_value = AsyncMock(return_value=8)
     result = await device.get_cold_tank_differential(device_info)
     device._get_device_info_value.assert_awaited_once_with("clDif", device_info)
-    assert result == 8
+    assert isinstance(result, TemperatureDelta)
+    assert result.value == 8
+    assert result.unit == 'F'
 
 @pytest.mark.get_params
 async def test_get_cold_tank_min_temp_smoke():
@@ -398,9 +402,9 @@ async def test_get_backup_temp(api_value, expected):
 @pytest.mark.get_params
 @pytest.mark.parametrize("api_value,expected", [
     (0, 'off'),      # 0 means disabled
-    (5, 5),          # normal value
-    (2, 2),          # minimum enabled value
-    (100, 100),      # maximum value
+    (5, TemperatureDelta(5, 'F')),          # normal value
+    (2, TemperatureDelta(2, 'F')),          # minimum enabled value
+    (100, TemperatureDelta(100, 'F')),      # maximum value
 ])
 async def test_get_backup_differential(api_value, expected):
     sensorlinx = Sensorlinx()
@@ -409,7 +413,12 @@ async def test_get_backup_differential(api_value, expected):
     device._get_device_info_value = AsyncMock(return_value=api_value)
     result = await device.get_backup_differential(device_info)
     device._get_device_info_value.assert_awaited_once_with("bkDif", device_info)
-    assert result == expected
+    if expected == 'off':
+        assert result == 'off'
+    else:
+        assert isinstance(result, TemperatureDelta)
+        assert result.value == expected.value
+        assert result.unit == expected.unit
 
 @pytest.mark.get_params
 @pytest.mark.parametrize("api_value,expected", [
