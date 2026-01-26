@@ -364,54 +364,84 @@ async def test_get_cold_tank_max_temp_smoke():
     assert result == 55
 
 @pytest.mark.get_params
-async def test_get_backup_lag_time_smoke():
+@pytest.mark.parametrize("api_value,expected", [
+    (0, 'off'),      # 0 means disabled
+    (20, 20),        # normal value
+    (1, 1),          # minimum enabled value
+    (240, 240),      # maximum value
+])
+async def test_get_backup_lag_time(api_value, expected):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"bkLag": 20}
-    device._get_device_info_value = AsyncMock(return_value=20)
+    device_info = {"bkLag": api_value}
+    device._get_device_info_value = AsyncMock(return_value=api_value)
     result = await device.get_backup_lag_time(device_info)
     device._get_device_info_value.assert_awaited_once_with("bkLag", device_info)
-    assert result == 20
+    assert result == expected
 
 @pytest.mark.get_params
-async def test_get_backup_temp_smoke():
+@pytest.mark.parametrize("api_value,expected", [
+    (0, 'off'),      # 0 means disabled
+    (30, 30),        # normal value
+    (2, 2),          # minimum enabled value
+    (100, 100),      # maximum value
+])
+async def test_get_backup_temp(api_value, expected):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"bkTemp": 30}
-    device._get_device_info_value = AsyncMock(return_value=30)
+    device_info = {"bkTemp": api_value}
+    device._get_device_info_value = AsyncMock(return_value=api_value)
     result = await device.get_backup_temp(device_info)
     device._get_device_info_value.assert_awaited_once_with("bkTemp", device_info)
-    assert result == 30
+    assert result == expected
 
 @pytest.mark.get_params
-async def test_get_backup_differential_smoke():
+@pytest.mark.parametrize("api_value,expected", [
+    (0, 'off'),      # 0 means disabled
+    (5, 5),          # normal value
+    (2, 2),          # minimum enabled value
+    (100, 100),      # maximum value
+])
+async def test_get_backup_differential(api_value, expected):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"bkDif": 5}
-    device._get_device_info_value = AsyncMock(return_value=5)
+    device_info = {"bkDif": api_value}
+    device._get_device_info_value = AsyncMock(return_value=api_value)
     result = await device.get_backup_differential(device_info)
     device._get_device_info_value.assert_awaited_once_with("bkDif", device_info)
-    assert result == 5
+    assert result == expected
 
 @pytest.mark.get_params
-async def test_get_backup_only_outdoor_temp_smoke():
+@pytest.mark.parametrize("api_value,expected", [
+    (-41, 'off'),    # -41 means disabled
+    (10, 10),        # normal value
+    (-40, -40),      # minimum enabled value
+    (127, 127),      # maximum value
+])
+async def test_get_backup_only_outdoor_temp(api_value, expected):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"bkOd": 10}
-    device._get_device_info_value = AsyncMock(return_value=10)
+    device_info = {"bkOd": api_value}
+    device._get_device_info_value = AsyncMock(return_value=api_value)
     result = await device.get_backup_only_outdoor_temp(device_info)
     device._get_device_info_value.assert_awaited_once_with("bkOd", device_info)
-    assert result == 10
+    assert result == expected
 
 @pytest.mark.get_params
-async def test_get_backup_only_tank_temp_smoke():
+@pytest.mark.parametrize("api_value,expected", [
+    (32, 'off'),     # 32 means disabled
+    (120, 120),      # normal value
+    (33, 33),        # minimum enabled value
+    (200, 200),      # maximum value
+])
+async def test_get_backup_only_tank_temp(api_value, expected):
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"bkTk": 120}
-    device._get_device_info_value = AsyncMock(return_value=120)
+    device_info = {"bkTk": api_value}
+    device._get_device_info_value = AsyncMock(return_value=api_value)
     result = await device.get_backup_only_tank_temp(device_info)
     device._get_device_info_value.assert_awaited_once_with("bkTk", device_info)
-    assert result == 120
+    assert result == expected
 
 @pytest.mark.get_params
 async def test_get_firmware_version_smoke():

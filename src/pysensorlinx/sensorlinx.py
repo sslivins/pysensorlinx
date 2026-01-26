@@ -1772,7 +1772,7 @@ class SensorlinxDevice:
         """
         return await self._get_device_info_value(COLD_TANK_MAX_TEMP, device_info)
 
-    async def get_backup_lag_time(self, device_info: Optional[Dict] = None):
+    async def get_backup_lag_time(self, device_info: Optional[Dict] = None) -> Union[int, str]:
         """
         Get the backup lag time setting for the device.
 
@@ -1780,14 +1780,17 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The backup lag time value.
+            Union[int, str]: The backup lag time value, or 'off' if disabled (value is 0).
 
         Raises:
             RuntimeError: If the device or backup lag time is not found.
         """
-        return await self._get_device_info_value(BACKUP_LAG_TIME, device_info)
+        value = await self._get_device_info_value(BACKUP_LAG_TIME, device_info)
+        if value == 0:
+            return 'off'
+        return value
 
-    async def get_backup_temp(self, device_info: Optional[Dict] = None):
+    async def get_backup_temp(self, device_info: Optional[Dict] = None) -> Union[int, str]:
         """
         Get the backup temperature setting for the device.
 
@@ -1795,14 +1798,17 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The backup temperature value.
+            Union[int, str]: The backup temperature value, or 'off' if disabled (value is 0).
 
         Raises:
             RuntimeError: If the device or backup temperature is not found.
         """
-        return await self._get_device_info_value(BACKUP_TEMP, device_info)
+        value = await self._get_device_info_value(BACKUP_TEMP, device_info)
+        if value == 0:
+            return 'off'
+        return value
 
-    async def get_backup_differential(self, device_info: Optional[Dict] = None):
+    async def get_backup_differential(self, device_info: Optional[Dict] = None) -> Union[int, str]:
         """
         Get the backup differential setting for the device.
 
@@ -1810,14 +1816,17 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The backup differential value.
+            Union[int, str]: The backup differential value, or 'off' if disabled (value is 0).
 
         Raises:
             RuntimeError: If the device or backup differential is not found.
         """
-        return await self._get_device_info_value(BACKUP_DIFFERENTIAL, device_info)
+        value = await self._get_device_info_value(BACKUP_DIFFERENTIAL, device_info)
+        if value == 0:
+            return 'off'
+        return value
 
-    async def get_backup_only_outdoor_temp(self, device_info: Optional[Dict] = None):
+    async def get_backup_only_outdoor_temp(self, device_info: Optional[Dict] = None) -> Union[int, str]:
         """
         Get the backup only outdoor temperature setting for the device.
 
@@ -1825,14 +1834,17 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The backup only outdoor temperature value.
+            Union[int, str]: The backup only outdoor temperature value, or 'off' if disabled (value is -41).
 
         Raises:
             RuntimeError: If the device or backup only outdoor temperature is not found.
         """
-        return await self._get_device_info_value(BACKUP_ONLY_OUTDOOR_TEMP, device_info)
+        value = await self._get_device_info_value(BACKUP_ONLY_OUTDOOR_TEMP, device_info)
+        if value == -41:
+            return 'off'
+        return value
 
-    async def get_backup_only_tank_temp(self, device_info: Optional[Dict] = None):
+    async def get_backup_only_tank_temp(self, device_info: Optional[Dict] = None) -> Union[int, str]:
         """
         Get the backup only tank temperature setting for the device.
 
@@ -1840,12 +1852,15 @@ class SensorlinxDevice:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            The backup only tank temperature value.
+            Union[int, str]: The backup only tank temperature value, or 'off' if disabled (value is 32).
 
         Raises:
             RuntimeError: If the device or backup only tank temperature is not found.
         """
-        return await self._get_device_info_value(BACKUP_ONLY_TANK_TEMP, device_info)    
+        value = await self._get_device_info_value(BACKUP_ONLY_TANK_TEMP, device_info)
+        if value == 32:
+            return 'off'
+        return value    
 
     async def get_firmware_version(self, device_info: Optional[Dict] = None) -> str:
         """
