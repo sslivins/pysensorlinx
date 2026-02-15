@@ -604,10 +604,10 @@ async def test_set_hot_tank_differential_non_temperature_type(sensorlinx_device_
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("fahrenheit,expected_json", [
-  (2, {"dbt": 2}),
-  (32, {"dbt": 32}),
-  (100, {"dbt": 100}),
-  (180, {"dbt": 180}),
+  (2, {"mbt": 2}),
+  (32, {"mbt": 32}),
+  (100, {"mbt": 100}),
+  (180, {"mbt": 180}),
 ])
 async def test_set_hot_tank_min_temp_valid_fahrenheit(sensorlinx_device_with_patch, fahrenheit, expected_json):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -633,7 +633,7 @@ async def test_set_hot_tank_min_temp_valid_celsius(sensorlinx_device_with_patch,
 
   assert sensorlinx._session.patch.call_count == 1
   _, kwargs = sensorlinx._session.patch.call_args
-  assert kwargs["json"] == {"dbt": expected_f}
+  assert kwargs["json"] == {"mbt": expected_f}
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 181, 200, -10])
@@ -692,10 +692,10 @@ async def test_set_hot_tank_min_temp_non_temperature_type(sensorlinx_device_with
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("fahrenheit,expected_json", [
-  (2, {"mbt": 2}),
-  (32, {"mbt": 32}),
-  (100, {"mbt": 100}),
-  (180, {"mbt": 180}),
+  (2, {"dbt": 2}),
+  (32, {"dbt": 32}),
+  (100, {"dbt": 100}),
+  (180, {"dbt": 180}),
 ])
 async def test_set_hot_tank_max_temp_valid_fahrenheit(sensorlinx_device_with_patch, fahrenheit, expected_json):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -721,7 +721,7 @@ async def test_set_hot_tank_max_temp_valid_celsius(sensorlinx_device_with_patch,
 
   assert sensorlinx._session.patch.call_count == 1
   _, kwargs = sensorlinx._session.patch.call_args
-  assert kwargs["json"] == {"mbt": expected_f}
+  assert kwargs["json"] == {"dbt": expected_f}
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 181, 200, -10])
@@ -1068,10 +1068,10 @@ async def test_set_cold_tank_differential_non_temperature_type(sensorlinx_device
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("fahrenheit,expected_json", [
-  (2, {"dst": 2}),
-  (32, {"dst": 32}),
-  (100, {"dst": 100}),
-  (180, {"dst": 180}),
+  (2, {"mst": 2}),
+  (32, {"mst": 32}),
+  (100, {"mst": 100}),
+  (180, {"mst": 180}),
 ])
 async def test_set_cold_tank_min_temp_valid_fahrenheit(sensorlinx_device_with_patch, fahrenheit, expected_json):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1097,7 +1097,7 @@ async def test_set_cold_tank_min_temp_valid_celsius(sensorlinx_device_with_patch
 
   assert sensorlinx._session.patch.call_count == 1
   _, kwargs = sensorlinx._session.patch.call_args
-  assert kwargs["json"] == {"dst": expected_f}
+  assert kwargs["json"] == {"mst": expected_f}
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 181, 200, -10])
@@ -1157,10 +1157,10 @@ async def test_set_cold_tank_min_temp_non_temperature_type(sensorlinx_device_wit
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("fahrenheit,expected_json", [
-  (2, {"mst": 2}),
-  (32, {"mst": 32}),
-  (100, {"mst": 100}),
-  (180, {"mst": 180}),
+  (2, {"dst": 2}),
+  (32, {"dst": 32}),
+  (100, {"dst": 100}),
+  (180, {"dst": 180}),
 ])
 async def test_set_cold_tank_max_temp_valid_fahrenheit(sensorlinx_device_with_patch, fahrenheit, expected_json):
   sensorlinx, device, mock_patch = sensorlinx_device_with_patch
@@ -1186,7 +1186,7 @@ async def test_set_cold_tank_max_temp_valid_celsius(sensorlinx_device_with_patch
 
   assert sensorlinx._session.patch.call_count == 1
   _, kwargs = sensorlinx._session.patch.call_args
-  assert kwargs["json"] == {"mst": expected_f}
+  assert kwargs["json"] == {"dst": expected_f}
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("invalid_f", [1, 0, 181, 200, -10])
