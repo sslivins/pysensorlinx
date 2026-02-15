@@ -130,7 +130,7 @@ async def test_live_get_specific_device():
         assert device is not None, "Failed to fetch devices"
         assert isinstance(device, dict), "Devices response is not a dict"
         assert device.get("syncCode") == device_id, "Device ID does not match"
-        #pprint.pprint(device)
+        pprint.pprint(device)
     except Exception as e:
         print(f"Test failed due to exception: {type(e).__name__}: {e}")
         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")

@@ -267,10 +267,10 @@ async def test_get_hot_tank_differential_smoke():
 async def test_get_hot_tank_min_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"dbt": 100}
+    device_info = {"mbt": 100}
     device._get_device_info_value = AsyncMock(return_value=100)
     result = await device.get_hot_tank_min_temp(device_info)
-    device._get_device_info_value.assert_awaited_once_with("dbt", device_info)
+    device._get_device_info_value.assert_awaited_once_with("mbt", device_info)
     assert isinstance(result, Temperature)
     assert result.value == 100
     assert result.unit == 'F'
@@ -279,10 +279,10 @@ async def test_get_hot_tank_min_temp_smoke():
 async def test_get_hot_tank_max_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"mbt": 150}
+    device_info = {"dbt": 150}
     device._get_device_info_value = AsyncMock(return_value=150)
     result = await device.get_hot_tank_max_temp(device_info)
-    device._get_device_info_value.assert_awaited_once_with("mbt", device_info)
+    device._get_device_info_value.assert_awaited_once_with("dbt", device_info)
     assert isinstance(result, Temperature)
     assert result.value == 150
     assert result.unit == 'F'
@@ -355,10 +355,10 @@ async def test_get_cold_tank_differential_smoke():
 async def test_get_cold_tank_min_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"dst": 45}
+    device_info = {"mst": 45}
     device._get_device_info_value = AsyncMock(return_value=45)
     result = await device.get_cold_tank_min_temp(device_info)
-    device._get_device_info_value.assert_awaited_once_with("dst", device_info)
+    device._get_device_info_value.assert_awaited_once_with("mst", device_info)
     assert isinstance(result, Temperature)
     assert result.value == 45
     assert result.unit == 'F'
@@ -367,10 +367,10 @@ async def test_get_cold_tank_min_temp_smoke():
 async def test_get_cold_tank_max_temp_smoke():
     sensorlinx = Sensorlinx()
     device = SensorlinxDevice(sensorlinx, "building123", "device456")
-    device_info = {"mst": 55}
+    device_info = {"dst": 55}
     device._get_device_info_value = AsyncMock(return_value=55)
     result = await device.get_cold_tank_max_temp(device_info)
-    device._get_device_info_value.assert_awaited_once_with("mst", device_info)
+    device._get_device_info_value.assert_awaited_once_with("dst", device_info)
     assert isinstance(result, Temperature)
     assert result.value == 55
     assert result.unit == 'F'
