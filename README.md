@@ -61,7 +61,7 @@ async def main():
     # Read parameters
     mode = await device.get_hvac_mode_priority()        # "heat", "cool", or "auto"
     temps = await device.get_temperatures()              # dict of sensor readings
-    max_temp = await device.get_hot_tank_max_temp()      # Temperature(150, 'F')
+    max_temp = await device.get_hot_tank_max_temp()      # Temperature(150.00, 'F')
 
     # Write parameters
     await device.set_hvac_mode_priority("auto")
@@ -81,21 +81,32 @@ from pysensorlinx import Temperature, TemperatureDelta
 
 # Absolute temperatures  (°F = °C × 9/5 + 32)
 t = Temperature(212, "F")
-print(t.celsius)          # 100.0
-print(t.to_celsius())     # Temperature(100.0, 'C')
+print(t.to_celsius())     # 100.0
+print(t.as_celsius())     # Temperature(100.00, 'C')
 print(t)                  # 212.00°F
 
 # Temperature differentials  (ΔF = ΔC × 9/5, no +32 offset)
 d = TemperatureDelta(9, "F")
-print(d.celsius)          # 5.0
-print(d.to_celsius())     # TemperatureDelta(5.0, 'C')
+print(d.to_celsius())     # 5.0
+print(d.as_celsius())     # TemperatureDelta(5.00, 'C')
 print(d)                  # 9.00Δ°F
 ```
+
+### Temperature methods
+
+| Method | Returns | Description |
+|---|---|---|
+| `to_celsius()` | `float` | Value converted to °C |
+| `to_fahrenheit()` | `float` | Value converted to °F |
+| `as_celsius()` | `Temperature` | New Temperature object in °C |
+| `as_fahrenheit()` | `Temperature` | New Temperature object in °F |
+
+`TemperatureDelta` has the same methods (returns `TemperatureDelta` for `as_*`).
 
 Some getters return `'off'` when the feature is disabled:
 
 ```python
-shutdown = await device.get_warm_weather_shutdown()  # Temperature(75, 'F') or 'off'
+shutdown = await device.get_warm_weather_shutdown()  # Temperature(75.00, 'F') or 'off'
 ```
 
 ## API reference
@@ -108,7 +119,7 @@ The low-level API client. Manages authentication and HTTP requests.
 |---|---|
 | `login(username, password)` | Authenticate with SensorLinx |
 | `close()` | Close the HTTP session |
-| `get_user_profile()` | Fetch the authenticated user's profile |
+| `get_profile()` | Fetch the authenticated user's profile |
 | `get_buildings(building_id=None)` | List all buildings, or fetch one by ID |
 | `get_devices(building_id, device_id=None)` | List devices in a building, or fetch one |
 | `set_device_parameter(building_id, device_id, **kwargs)` | Set one or more device parameters |
@@ -149,11 +160,14 @@ A high-level wrapper around a single device. All methods are `async`.
 | `get_backup_differential()` | `TemperatureDelta \| 'off'` | |
 | `get_backup_only_outdoor_temp()` | `Temperature \| 'off'` | |
 | `get_backup_only_tank_temp()` | `Temperature \| 'off'` | |
-| `get_temperatures(sensor=None)` | `dict` | Live sensor readings |
-| `get_stages()` | `list[dict]` | Stage info with runtimes |
-| `get_backup()` | `dict` | Backup state and runtime |
-| `get_firmware_version()` | `float` | |
-| `get_device_type()` | `str` | e.g. `"ECO-0600"` |
+| `get_firmware_version()` | `str` | |
+| `get_sync_code()` | `str` | |
+| `get_device_pin()` | `str` | |
+| `get_device_type()` | `str` | e.g. `"ECO"` |
+| `get_temperatures(temp_name=None)` | `dict` | Dict of sensor dicts with `actual` and `target` as `Temperature` objects. Pass `temp_name` to get one sensor. |
+| `get_runtimes()` | `dict` | Stage runtimes as `list[timedelta]`, backup runtime as `timedelta` |
+| `get_heatpump_stages_state()` | `list[dict]` | Stage info with `activated`, `enabled`, `title`, `device`, `index`, `runTime` |
+| `get_backup_state()` | `dict` | Backup state with `activated`, `enabled`, `title`, `runTime` |
 
 #### Setters
 
@@ -162,8 +176,9 @@ All setters accept the value as the first argument. Temperature setters accept `
 | Method | Accepts |
 |---|---|
 | `set_hvac_mode_priority(value)` | `"heat"`, `"cool"`, `"auto"` |
-| `set_permanent_heat_demand(value)` | `bool` |
-| `set_permanent_cool_demand(value)` | `bool` |
+| `set_permanent_hd(value)` | `bool` |
+| `set_permanent_cd(value)` | `bool` |
+| `set_wide_priority_differential(value)` | `bool` |
 | `set_weather_shutdown_lag_time(value)` | `int` (0–240 hours) |
 | `set_number_of_stages(value)` | `int` (1–4) |
 | `set_two_stage_heat_pump(value)` | `bool` |
@@ -178,11 +193,13 @@ All setters accept the value as the first argument. Temperature setters accept `
 | `set_hot_tank_differential(value)` | `int` (2–100 °F) |
 | `set_hot_tank_min_temp(value)` | `int` (2–180 °F) |
 | `set_hot_tank_max_temp(value)` | `int` (2–180 °F) |
+| `set_hot_tank_target_temp(value)` | Alias for `set_hot_tank_min_temp` |
 | `set_cold_weather_shutdown(value)` | `int` (33–119 °F) or `"off"` |
 | `set_cold_tank_outdoor_reset(value)` | `int` (0–119 °F) or `"off"` |
 | `set_cold_tank_differential(value)` | `int` (2–100 °F) |
 | `set_cold_tank_min_temp(value)` | `int` (2–180 °F) |
 | `set_cold_tank_max_temp(value)` | `int` (2–180 °F) |
+| `set_cold_tank_target_temp(value)` | Alias for `set_cold_tank_min_temp` |
 | `set_backup_lag_time(value)` | `int` (1–240 min) or `"off"` |
 | `set_backup_temp(value)` | `int` (2–100 °F) or `"off"` |
 | `set_backup_differential(value)` | `int` (2–100 °F) or `"off"` |
