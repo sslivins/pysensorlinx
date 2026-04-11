@@ -1783,3 +1783,18 @@ async def test_set_dhw_differential_invalid_type(sensorlinx_device_with_patch, i
   with pytest.raises(InvalidParameterError) as excinfo:
     await device.set_dhw_differential(invalid_input)
   assert str(excinfo.value) == expected_error
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("celsius,expected_f", [
+  (1.2, 2),    # 1.2°C delta → 2.16°F delta → rounds to 2
+  (1.7, 3),    # 1.7°C delta → 3.06°F delta → rounds to 3
+  (55.0, 99),  # 55.0°C delta → 99°F delta
+])
+async def test_set_dhw_differential_valid_celsius(sensorlinx_device_with_patch, celsius, expected_f):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  await device.set_dhw_differential(TemperatureDelta(celsius, "C"))
+
+  assert sensorlinx._session.patch.call_count == 1
+  _, kwargs = sensorlinx._session.patch.call_args
+  assert kwargs["json"] == {"auxDif": expected_f}

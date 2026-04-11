@@ -1933,7 +1933,7 @@ class SensorlinxDevice:
         Raises:
             RuntimeError: If the device or DHW enabled state is not found.
         """
-        return await self._get_device_info_value(DHW_ENABLED, device_info)
+        return bool(await self._get_device_info_value(DHW_ENABLED, device_info))
 
     async def get_dhw_target_temp(self, device_info: Optional[Dict] = None) -> Temperature:
         """
@@ -2397,6 +2397,7 @@ class SensorlinxDevice:
                 - 'rain' (float): Rain amount
                 - 'description' (str): Weather description (e.g., "mist")
                 - 'icon' (str): Weather icon code
+                - 'weatherId' (int): OpenWeatherMap condition ID
 
         Raises:
             RuntimeError: If building info or weather data is not found.

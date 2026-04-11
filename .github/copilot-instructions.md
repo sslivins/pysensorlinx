@@ -122,7 +122,7 @@ Use the actual method names from the source code. Key ones that are easy to get 
 - **Live tests:** Require `.env` file with `SENSORLINX_USERNAME`, `SENSORLINX_PASSWORD`, `SENSORLINX_BUILDING_ID`, `SENSORLINX_DEVICE_ID`
 - **Run all unit tests:** `pytest tests/get_parameter_test.py tests/set_parameters_test.py tests/temperature_class_test.py`
 - **Run live tests:** `pytest tests/live_test.py -s -v` (needs network + credentials)
-- **Current test count:** ~701 tests
+- **Current test count:** ~708 tests
 
 ## CI/CD Workflows
 

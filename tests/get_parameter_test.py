@@ -738,7 +738,16 @@ async def test_get_dhw_enabled_smoke():
     device._get_device_info_value = AsyncMock(return_value=1)
     result = await device.get_dhw_enabled(device_info)
     device._get_device_info_value.assert_awaited_once_with("dhwOn", device_info)
-    assert result == 1
+    assert result is True
+
+@pytest.mark.get_params
+async def test_get_dhw_enabled_false():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"dhwOn": 0}
+    device._get_device_info_value = AsyncMock(return_value=0)
+    result = await device.get_dhw_enabled(device_info)
+    assert result is False
 
 @pytest.mark.get_params
 async def test_get_dhw_differential_smoke():
@@ -982,3 +991,23 @@ async def test_get_forecast_fetch_failure():
     with pytest.raises(RuntimeError, match="Failed to fetch building info: timeout"):
         await device.get_forecast()
 
+@pytest.mark.get_params
+async def test_get_current_weather_no_weather_key():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    with pytest.raises(RuntimeError, match="Current weather data not found."):
+        await device.get_current_weather({"other_key": "value"})
+
+@pytest.mark.get_params
+async def test_get_forecast_no_weather_key():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    with pytest.raises(RuntimeError, match="Forecast data not found."):
+        await device.get_forecast({"other_key": "value"})
+
+@pytest.mark.get_params
+async def test_get_forecast_empty_list():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    result = await device.get_forecast({"weather": {"forecast": []}})
+    assert result == []
