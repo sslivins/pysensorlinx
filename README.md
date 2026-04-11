@@ -172,6 +172,22 @@ A high-level wrapper around a single device. All methods are `async`.
 | `get_runtimes()` | `dict` | Stage runtimes as `list[timedelta]`, backup runtime as `timedelta` |
 | `get_heatpump_stages_state()` | `list[dict]` | Stage info with `activated`, `enabled`, `title`, `device`, `index`, `runTime` |
 | `get_backup_state()` | `dict` | Backup state with `activated`, `enabled`, `title`, `runTime` |
+| `get_current_weather()` | `dict` | Current conditions: `temp`, `feelsLike`, `min`, `max` as `Temperature`; `pressure`, `humidity`, `wind`, `windDir`, `clouds`, `snow`, `rain`, `description`, `icon`, `weatherId` |
+| `get_forecast()` | `list[dict]` | Forecast periods: `time` as `datetime`, `temp`/`min`/`max` as `Temperature`, `pop`, `snow`, `description`, `icon`, `weatherId` |
+
+#### Weather conditions
+
+The `description` and `weatherId` fields in weather and forecast data come from [OpenWeatherMap](https://openweathermap.org/weather-conditions). Use `weatherId` for programmatic checks — it is more reliable than parsing the description string.
+
+| Group | `weatherId` range | Example descriptions |
+|---|---|---|
+| Thunderstorm | 200–232 | "thunderstorm with light rain", "heavy thunderstorm" |
+| Drizzle | 300–321 | "light intensity drizzle", "drizzle rain" |
+| Rain | 500–531 | "light rain", "moderate rain", "heavy intensity rain" |
+| Snow | 600–622 | "light snow", "heavy snow", "sleet" |
+| Atmosphere | 701–781 | "mist", "smoke", "haze", "fog", "tornado" |
+| Clear | 800 | "clear sky" |
+| Clouds | 801–804 | "few clouds", "scattered clouds", "broken clouds", "overcast clouds" |
 
 #### Setters
 

@@ -842,4 +842,143 @@ async def test_get_dhw_state_cases(device_info, get_devices_side_effect, expecte
             await device.get_dhw_state(device_info=call_device_info)
     else:
         result = await device.get_dhw_state(device_info=call_device_info)
-        assert result == expected_result                    
+        assert result == expected_result
+
+SAMPLE_BUILDING_INFO= {
+    "weather": {
+        "weather": {
+            "temp": 45.52,
+            "feelsLike": 42.48,
+            "min": 43.34,
+            "max": 47.86,
+            "pressure": 1024,
+            "humidity": 89,
+            "wind": 5.75,
+            "windDir": 210,
+            "clouds": 100,
+            "snow": 0,
+            "rain": 0,
+            "type": "Mist",
+            "description": "mist",
+            "icon": "50d",
+            "weatherId": 701,
+        },
+        "forecast": [
+            {
+                "time": "2026-04-03T18:00:00.000Z",
+                "pop": 0,
+                "snow": 0,
+                "temp": 49.6,
+                "min": 49.6,
+                "max": 63.91,
+                "description": "overcast clouds",
+                "icon": "04d",
+                "weatherId": 804,
+            },
+            {
+                "time": "2026-04-04T00:00:00.000Z",
+                "pop": 0,
+                "snow": 0,
+                "temp": 58.17,
+                "min": 44.83,
+                "max": 60.78,
+                "description": "overcast clouds",
+                "icon": "04n",
+                "weatherId": 804,
+            },
+        ],
+    }
+}
+
+@pytest.mark.get_params
+async def test_get_current_weather_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    result = await device.get_current_weather(SAMPLE_BUILDING_INFO)
+    assert isinstance(result["temp"], Temperature)
+    assert result["temp"].to_fahrenheit() == 45.52
+    assert isinstance(result["feelsLike"], Temperature)
+    assert result["feelsLike"].to_fahrenheit() == 42.48
+    assert result["humidity"] == 89
+    assert result["pressure"] == 1024
+    assert result["description"] == "mist"
+    assert result["icon"] == "50d"
+    assert result["weatherId"] == 701
+
+@pytest.mark.get_params
+async def test_get_current_weather_fetches_building():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    sensorlinx.get_buildings = AsyncMock(return_value=SAMPLE_BUILDING_INFO)
+    result = await device.get_current_weather()
+    sensorlinx.get_buildings.assert_awaited_once_with("building123")
+    assert result["temp"].to_fahrenheit() == 45.52
+
+@pytest.mark.get_params
+async def test_get_current_weather_accepts_list():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    result = await device.get_current_weather([SAMPLE_BUILDING_INFO])
+    assert result["temp"].to_fahrenheit() == 45.52
+
+@pytest.mark.get_params
+async def test_get_current_weather_missing_data():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    with pytest.raises(RuntimeError, match="Current weather data not found."):
+        await device.get_current_weather({"weather": {}})
+
+@pytest.mark.get_params
+async def test_get_current_weather_fetch_failure():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    sensorlinx.get_buildings = AsyncMock(side_effect=Exception("network error"))
+    with pytest.raises(RuntimeError, match="Failed to fetch building info: network error"):
+        await device.get_current_weather()
+
+@pytest.mark.get_params
+async def test_get_forecast_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    result = await device.get_forecast(SAMPLE_BUILDING_INFO)
+    assert len(result) == 2
+    assert isinstance(result[0]["time"], datetime.datetime)
+    assert result[0]["time"].tzinfo is not None
+    assert isinstance(result[0]["temp"], Temperature)
+    assert result[0]["temp"].to_fahrenheit() == 49.6
+    assert result[0]["pop"] == 0
+    assert result[0]["description"] == "overcast clouds"
+    assert result[0]["weatherId"] == 804
+    assert result[1]["temp"].to_fahrenheit() == 58.17
+
+@pytest.mark.get_params
+async def test_get_forecast_fetches_building():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    sensorlinx.get_buildings = AsyncMock(return_value=SAMPLE_BUILDING_INFO)
+    result = await device.get_forecast()
+    sensorlinx.get_buildings.assert_awaited_once_with("building123")
+    assert len(result) == 2
+
+@pytest.mark.get_params
+async def test_get_forecast_missing_data():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    with pytest.raises(RuntimeError, match="Forecast data not found."):
+        await device.get_forecast({"weather": {}})
+
+@pytest.mark.get_params
+async def test_get_forecast_not_a_list():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    with pytest.raises(RuntimeError, match="Forecast data must be a list."):
+        await device.get_forecast({"weather": {"forecast": "bad"}})
+
+@pytest.mark.get_params
+async def test_get_forecast_fetch_failure():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    sensorlinx.get_buildings = AsyncMock(side_effect=Exception("timeout"))
+    with pytest.raises(RuntimeError, match="Failed to fetch building info: timeout"):
+        await device.get_forecast()
+

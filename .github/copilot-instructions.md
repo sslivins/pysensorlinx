@@ -122,7 +122,7 @@ Use the actual method names from the source code. Key ones that are easy to get 
 - **Live tests:** Require `.env` file with `SENSORLINX_USERNAME`, `SENSORLINX_PASSWORD`, `SENSORLINX_BUILDING_ID`, `SENSORLINX_DEVICE_ID`
 - **Run all unit tests:** `pytest tests/get_parameter_test.py tests/set_parameters_test.py tests/temperature_class_test.py`
 - **Run live tests:** `pytest tests/live_test.py -s -v` (needs network + credentials)
-- **Current test count:** ~691 tests
+- **Current test count:** ~701 tests
 
 ## CI/CD Workflows
 
@@ -157,6 +157,7 @@ The HBX ECO-0600 is a heat pump staging controller for hydronic (water-based) he
 - **Weather Shutdown:** `wwsd` (warm weather) and `cwsd` (cold weather) define outdoor temps at which heating/cooling shuts off entirely.
 - **Stages:** Up to 16 heat pump stages can be managed with configurable lag times, rotation, and sequencing.
 - **Backup:** An auxiliary/backup heat source with its own differential, outdoor temp lockout, and tank temp lockout.
+- **Weather:** Current conditions and forecast are stored at the building level (not device level). Accessed via `get_buildings(building_id)` — the building dict has a `weather.weather` key (current conditions) and `weather.forecast` key (list of periods). Both `get_current_weather()` and `get_forecast()` on `SensorlinxDevice` accept an optional `building_info` dict to avoid redundant API calls. Temperatures in weather data are in °F and are returned as `Temperature` objects.
 - **Demands:** Heat demand (`hd`), cool demand (`cd`), and domestic hot water (`dhw`) are independent demand channels. Runtime state for all three is in the `demands` list in the device info.
 - **DHW:** Controlled via `dhwOn` (enabled bool), `dhwT` (target temp °F), and `auxDif` (differential TemperatureDelta). The DHW tank sensor appears as `temp4` / `"type": "dhw"` in the temperatures array.
 - **Temperature sensors:** Up to 4 sensor inputs (tank, outdoor, and two auxiliary). Accessed via `tB1`–`tB4` (raw) or the `temperatures` array (structured).

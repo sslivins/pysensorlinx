@@ -2372,3 +2372,118 @@ class SensorlinxDevice:
             'title': backup_data.get('title', 'Backup'),
             'runTime': backup_data.get('runTime', '0:00')
         }
+
+    async def get_current_weather(self, building_info: Optional[Dict] = None) -> Dict:
+        """
+        Retrieve the current weather conditions for the building.
+
+        Weather data is attached to the building, not the device.
+
+        Args:
+            building_info (Optional[Dict]): If provided, use this building dict instead of fetching from API.
+
+        Returns:
+            Dict containing:
+                - 'temp' (Temperature): Current outdoor temperature
+                - 'feelsLike' (Temperature): Feels-like temperature
+                - 'min' (Temperature): Today's minimum temperature
+                - 'max' (Temperature): Today's maximum temperature
+                - 'pressure' (int): Atmospheric pressure in hPa
+                - 'humidity' (int): Relative humidity in %
+                - 'wind' (float): Wind speed
+                - 'windDir' (int): Wind direction in degrees
+                - 'clouds' (int): Cloud cover in %
+                - 'snow' (float): Snow amount
+                - 'rain' (float): Rain amount
+                - 'description' (str): Weather description (e.g., "mist")
+                - 'icon' (str): Weather icon code
+
+        Raises:
+            RuntimeError: If building info or weather data is not found.
+        """
+        if building_info is None:
+            try:
+                building_info = await self.sensorlinx.get_buildings(self.building_id)
+            except Exception as e:
+                raise RuntimeError(f"Failed to fetch building info: {e}")
+        if not building_info:
+            raise RuntimeError("Building info not found.")
+
+        if isinstance(building_info, list):
+            building_info = building_info[0]
+
+        weather_data = building_info.get('weather', {}).get('weather')
+        if not weather_data:
+            raise RuntimeError("Current weather data not found.")
+
+        return {
+            'temp': Temperature(weather_data['temp'], 'F'),
+            'feelsLike': Temperature(weather_data['feelsLike'], 'F'),
+            'min': Temperature(weather_data['min'], 'F'),
+            'max': Temperature(weather_data['max'], 'F'),
+            'pressure': weather_data.get('pressure'),
+            'humidity': weather_data.get('humidity'),
+            'wind': weather_data.get('wind'),
+            'windDir': weather_data.get('windDir'),
+            'clouds': weather_data.get('clouds'),
+            'snow': weather_data.get('snow', 0),
+            'rain': weather_data.get('rain', 0),
+            'description': weather_data.get('description'),
+            'icon': weather_data.get('icon'),
+            'weatherId': weather_data.get('weatherId'),
+        }
+
+    async def get_forecast(self, building_info: Optional[Dict] = None) -> List[Dict]:
+        """
+        Retrieve the weather forecast for the building.
+
+        Weather data is attached to the building, not the device.
+
+        Args:
+            building_info (Optional[Dict]): If provided, use this building dict instead of fetching from API.
+
+        Returns:
+            List of forecast period dicts, each containing:
+                - 'time' (datetime): Forecast period start time (UTC)
+                - 'pop' (int): Probability of precipitation in %
+                - 'snow' (float): Snow amount
+                - 'temp' (Temperature): Forecast temperature
+                - 'min' (Temperature): Minimum temperature for the period
+                - 'max' (Temperature): Maximum temperature for the period
+                - 'description' (str): Weather description
+                - 'icon' (str): Weather icon code
+
+        Raises:
+            RuntimeError: If building info or forecast data is not found.
+        """
+        if building_info is None:
+            try:
+                building_info = await self.sensorlinx.get_buildings(self.building_id)
+            except Exception as e:
+                raise RuntimeError(f"Failed to fetch building info: {e}")
+        if not building_info:
+            raise RuntimeError("Building info not found.")
+
+        if isinstance(building_info, list):
+            building_info = building_info[0]
+
+        forecast_data = building_info.get('weather', {}).get('forecast')
+        if forecast_data is None:
+            raise RuntimeError("Forecast data not found.")
+        if not isinstance(forecast_data, list):
+            raise RuntimeError("Forecast data must be a list.")
+
+        result = []
+        for period in forecast_data:
+            result.append({
+                'time': datetime.datetime.fromisoformat(period['time'].replace('Z', '+00:00')),
+                'pop': period.get('pop', 0),
+                'snow': period.get('snow', 0),
+                'temp': Temperature(period['temp'], 'F'),
+                'min': Temperature(period['min'], 'F'),
+                'max': Temperature(period['max'], 'F'),
+                'description': period.get('description'),
+                'icon': period.get('icon'),
+                'weatherId': period.get('weatherId'),
+            })
+        return result
