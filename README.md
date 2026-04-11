@@ -45,29 +45,30 @@ from pysensorlinx import Sensorlinx, SensorlinxDevice
 
 async def main():
     api = Sensorlinx()
-    await api.login("your_username", "your_password")
+    try:
+        await api.login("your_username", "your_password")
 
-    # List buildings
-    buildings = await api.get_buildings()
-    building_id = buildings[0]["_id"]
+        # List buildings
+        buildings = await api.get_buildings()
+        building_id = buildings[0]["_id"]
 
-    # List devices in the first building
-    devices = await api.get_devices(building_id)
-    device_id = devices[0]["_id"]
+        # List devices in the first building
+        devices = await api.get_devices(building_id)
+        device_id = devices[0]["syncCode"]
 
-    # Create a device helper
-    device = SensorlinxDevice(api, building_id, device_id)
+        # Create a device helper
+        device = SensorlinxDevice(api, building_id, device_id)
 
-    # Read parameters
-    mode = await device.get_hvac_mode_priority()        # "heat", "cool", or "auto"
-    temps = await device.get_temperatures()              # dict of sensor readings
-    max_temp = await device.get_hot_tank_max_temp()      # Temperature(150.00, 'F')
+        # Read parameters
+        mode = await device.get_hvac_mode_priority()        # "heat", "cool", or "auto"
+        temps = await device.get_temperatures()              # dict of sensor readings
+        max_temp = await device.get_hot_tank_max_temp()      # Temperature(150.00, 'F')
 
-    # Write parameters
-    await device.set_hvac_mode_priority("auto")
-    await device.set_hot_tank_max_temp(160)              # accepts int (°F) or Temperature
-
-    await api.close()
+        # Write parameters
+        await device.set_hvac_mode_priority("auto")
+        await device.set_hot_tank_max_temp(160)              # accepts int (°F) or Temperature
+    finally:
+        await api.close()
 
 asyncio.run(main())
 ```
