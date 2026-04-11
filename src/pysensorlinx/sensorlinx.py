@@ -240,8 +240,9 @@ class Sensorlinx:
                     _LOGGER.error("Invalid credentials.")
                     raise InvalidCredentialsError("Invalid username or password.")
                 if resp.status != 200:
-                    _LOGGER.error(f"Login failed with status {resp.status}")
-                    raise LoginError(f"Login failed with status {resp.status}")
+                    body = await resp.text()
+                    _LOGGER.error(f"Login failed with status {resp.status}: {body}")
+                    raise LoginError(f"Login failed with status {resp.status}: {body}")
                 data = await resp.json()
                 self._bearer_token = data.get("token")
                 self._refresh_token = data.get("refresh")
@@ -286,7 +287,8 @@ class Sensorlinx:
                 timeout=10
             ) as resp:
                 if resp.status != 200:
-                    _LOGGER.error(f"Failed to fetch profile with status {resp.status}")
+                    body = await resp.text()
+                    _LOGGER.error(f"Failed to fetch profile with status {resp.status}: {body}")
                     return None
                 data = await resp.json()
                 return data
@@ -322,7 +324,8 @@ class Sensorlinx:
                 timeout=10
             ) as resp:
                 if resp.status != 200:
-                    _LOGGER.error(f"Failed to fetch building(s) with status {resp.status}")
+                    body = await resp.text()
+                    _LOGGER.error(f"Failed to fetch building(s) with status {resp.status}: {body}")
                     return None
                 data = await resp.json()
                 return data
@@ -362,8 +365,9 @@ class Sensorlinx:
                 timeout=10
             ) as resp:
                 if resp.status != 200:
-                    _LOGGER.error(f"Failed to fetch device(s) with status {resp.status}")
-                    raise RuntimeError(f"Failed to fetch device(s) with status {resp.status}")
+                    body = await resp.text()
+                    _LOGGER.error(f"Failed to fetch device(s) with status {resp.status}: {body}")
+                    raise RuntimeError(f"Failed to fetch device(s) with status {resp.status}: {body}")
                 data = await resp.json()
                 if not data:
                     raise RuntimeError("No device data found.")
@@ -781,8 +785,9 @@ class Sensorlinx:
                 timeout=10
             ) as resp:
                 if resp.status != 200:
-                    _LOGGER.error(f"Failed to set device parameter(s) with status {resp.status}")
-                    raise RuntimeError(f"Failed to set device parameter(s) with status {resp.status}")
+                    body = await resp.text()
+                    _LOGGER.error(f"Failed to set device parameter(s) with status {resp.status}: {body}")
+                    raise RuntimeError(f"Failed to set device parameter(s) with status {resp.status}: {body}")
                 _LOGGER.debug(f"Response from setting device parameter(s): {await resp.json()}")
         except Exception as e:
             _LOGGER.error(f"Exception setting device parameter(s): {e}")
