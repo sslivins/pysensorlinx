@@ -728,4 +728,118 @@ async def test_get_runtimes_cases(device_info, get_devices_side_effect, expected
         if "backup" in expected_result:
             assert result["backup"] == expected_result["backup"]
         else:
-            assert "backup" not in result                    
+            assert "backup" not in result
+
+@pytest.mark.get_params
+async def test_get_dhw_enabled_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"dhwOn": 1}
+    device._get_device_info_value = AsyncMock(return_value=1)
+    result = await device.get_dhw_enabled(device_info)
+    device._get_device_info_value.assert_awaited_once_with("dhwOn", device_info)
+    assert result == 1
+
+@pytest.mark.get_params
+async def test_get_dhw_differential_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"auxDif": 3}
+    device._get_device_info_value = AsyncMock(return_value=3)
+    result = await device.get_dhw_differential(device_info)
+    device._get_device_info_value.assert_awaited_once_with("auxDif", device_info)
+    assert isinstance(result, TemperatureDelta)
+    assert result.to_fahrenheit() == 3
+
+@pytest.mark.get_params
+async def test_get_dhw_target_temp_smoke():
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    device_info = {"dhwT": 120}
+    device._get_device_info_value = AsyncMock(return_value=120)
+    result = await device.get_dhw_target_temp(device_info)
+    device._get_device_info_value.assert_awaited_once_with("dhwT", device_info)
+    assert isinstance(result, Temperature)
+    assert result.to_fahrenheit() == 120
+
+@pytest.mark.get_params
+@pytest.mark.parametrize(
+    "device_info, get_devices_side_effect, expected_result, expected_exception, expected_message",
+    [
+        # Success: DHW present and enabled
+        (
+            {"demands": [
+                {"name": "hd", "title": "Heat", "enabled": True, "activated": True},
+                {"name": "cd", "title": "Cool", "enabled": True, "activated": False},
+                {"name": "dhw", "title": "DHW", "enabled": True, "activated": False},
+            ]},
+            None,
+            {"activated": False, "enabled": True, "title": "DHW"},
+            None,
+            None,
+        ),
+        # Success: DHW activated
+        (
+            {"demands": [
+                {"name": "dhw", "title": "DHW", "enabled": True, "activated": True},
+            ]},
+            None,
+            {"activated": True, "enabled": True, "title": "DHW"},
+            None,
+            None,
+        ),
+        # Failure: demands not a list
+        (
+            {"demands": {"name": "dhw"}},
+            None,
+            None,
+            RuntimeError,
+            "Demands data must be a list.",
+        ),
+        # Failure: dhw entry missing from demands
+        (
+            {"demands": [
+                {"name": "hd", "title": "Heat", "enabled": True, "activated": False},
+            ]},
+            None,
+            None,
+            RuntimeError,
+            "DHW demand not found.",
+        ),
+        # Failure: device_info is None, get_devices returns None
+        (
+            None,
+            None,
+            None,
+            RuntimeError,
+            "Device info not found.",
+        ),
+        # Failure: get_devices raises exception
+        (
+            None,
+            Exception("network error"),
+            None,
+            RuntimeError,
+            "Failed to fetch device info: network error",
+        ),
+    ]
+)
+async def test_get_dhw_state_cases(device_info, get_devices_side_effect, expected_result, expected_exception, expected_message):
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+
+    if device_info is None:
+        if isinstance(get_devices_side_effect, Exception):
+            sensorlinx.get_devices = AsyncMock(side_effect=get_devices_side_effect)
+        else:
+            sensorlinx.get_devices = AsyncMock(return_value=get_devices_side_effect)
+        call_device_info = None
+    else:
+        call_device_info = device_info
+
+    if expected_exception:
+        with pytest.raises(expected_exception, match=expected_message):
+            await device.get_dhw_state(device_info=call_device_info)
+    else:
+        result = await device.get_dhw_state(device_info=call_device_info)
+        assert result == expected_result                    

@@ -1661,3 +1661,125 @@ async def test_set_backup_only_tank_temp_invalid_type(sensorlinx_device_with_pat
   with pytest.raises(InvalidParameterError) as excinfo:
     await device.set_backup_only_tank_temp(invalid_input)
   assert str(excinfo.value) == expected_error
+
+##################################################################################################
+# DHW enabled tests
+##################################################################################################
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("value,expected", [
+  (True, {"dhwOn": True}),
+  (False, {"dhwOn": False}),
+])
+async def test_set_dhw_enabled(sensorlinx_device_with_patch, value, expected):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  await device.set_dhw_enabled(value)
+
+  assert sensorlinx._session.patch.call_count == 1
+  _, kwargs = sensorlinx._session.patch.call_args
+  assert kwargs["json"] == expected
+
+@pytest.mark.set_params
+async def test_set_dhw_enabled_invalid_type(sensorlinx_device_with_patch):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  with pytest.raises(InvalidParameterError):
+    await device.set_dhw_enabled(None)
+
+##################################################################################################
+# DHW target temp tests
+##################################################################################################
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("value_f,expected", [
+  (33, {"dhwT": 33}),
+  (120, {"dhwT": 120}),
+  (180, {"dhwT": 180}),
+])
+async def test_set_dhw_target_temp_valid_fahrenheit(sensorlinx_device_with_patch, value_f, expected):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  await device.set_dhw_target_temp(Temperature(value_f, "F"))
+
+  assert sensorlinx._session.patch.call_count == 1
+  _, kwargs = sensorlinx._session.patch.call_args
+  assert kwargs["json"] == expected
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("celsius,expected_f", [
+  (0.6, 33),    # 0.6°C ≈ 33°F
+  (48.9, 120),  # 48.9°C ≈ 120°F
+  (82.2, 180),  # 82.2°C ≈ 180°F
+])
+async def test_set_dhw_target_temp_valid_celsius(sensorlinx_device_with_patch, celsius, expected_f):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  await device.set_dhw_target_temp(Temperature(celsius, "C"))
+
+  assert sensorlinx._session.patch.call_count == 1
+  _, kwargs = sensorlinx._session.patch.call_args
+  assert kwargs["json"] == {"dhwT": expected_f}
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("invalid_f", [32, 181, 0, -10, 300])
+async def test_set_dhw_target_temp_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  with pytest.raises(InvalidParameterError) as excinfo:
+    await device.set_dhw_target_temp(Temperature(invalid_f, "F"))
+  assert str(excinfo.value) == "DHW target temperature must be between 33°F and 180°F."
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("invalid_input,expected_error", [
+  (123, "DHW target temperature must be a Temperature instance."),
+  ("hot", "DHW target temperature must be a Temperature instance."),
+  (None, "At least one optional parameter must be provided."),
+])
+async def test_set_dhw_target_temp_invalid_type(sensorlinx_device_with_patch, invalid_input, expected_error):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  with pytest.raises(InvalidParameterError) as excinfo:
+    await device.set_dhw_target_temp(invalid_input)
+  assert str(excinfo.value) == expected_error
+
+##################################################################################################
+# DHW differential tests
+##################################################################################################
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("value_f,expected", [
+  (2, {"auxDif": 2}),
+  (3, {"auxDif": 3}),
+  (100, {"auxDif": 100}),
+])
+async def test_set_dhw_differential_valid_fahrenheit(sensorlinx_device_with_patch, value_f, expected):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  await device.set_dhw_differential(TemperatureDelta(value_f, "F"))
+
+  assert sensorlinx._session.patch.call_count == 1
+  _, kwargs = sensorlinx._session.patch.call_args
+  assert kwargs["json"] == expected
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("invalid_f", [0, 1, 101, 200])
+async def test_set_dhw_differential_invalid_fahrenheit(sensorlinx_device_with_patch, invalid_f):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  with pytest.raises(InvalidParameterError) as excinfo:
+    await device.set_dhw_differential(TemperatureDelta(invalid_f, "F"))
+  assert str(excinfo.value) == "DHW differential must be between 2°F and 100°F."
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("invalid_input,expected_error", [
+  (5, "DHW differential must be a TemperatureDelta instance."),
+  ("3", "DHW differential must be a TemperatureDelta instance."),
+  (None, "At least one optional parameter must be provided."),
+])
+async def test_set_dhw_differential_invalid_type(sensorlinx_device_with_patch, invalid_input, expected_error):
+  sensorlinx, device, mock_patch = sensorlinx_device_with_patch
+
+  with pytest.raises(InvalidParameterError) as excinfo:
+    await device.set_dhw_differential(invalid_input)
+  assert str(excinfo.value) == expected_error

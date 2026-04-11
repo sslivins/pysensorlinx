@@ -50,7 +50,7 @@ Represents an absolute temperature value.
 ### `TemperatureDelta`
 Represents a temperature *difference* (differential), not an absolute value.
 - Same interface as `Temperature` but conversion has **no +32 offset**: `ΔF = ΔC × 9/5`
-- Used for: `htDif`, `clDif`, `bkDif`, `wPDif`, `auxDif`
+- Used for: `htDif`, `clDif`, `bkDif`, `wPDif`, `auxDif` (`auxDif` is the DHW differential)
 
 ### Exceptions
 - `InvalidCredentialsError` — wrong username/password
@@ -75,6 +75,10 @@ The SensorLinx API uses short abbreviated keys. The constant names map as follow
 | `HOT_TANK_DIFFERENTIAL` | `htDif` | Hot tank differential (TemperatureDelta) |
 | `COLD_TANK_DIFFERENTIAL` | `clDif` | Cold tank differential (TemperatureDelta) |
 | `BACKUP_DIFFERENTIAL` | `bkDif` | Backup differential (TemperatureDelta) |
+| `DHW_ENABLED` | `dhwOn` | DHW demand channel enabled (bool 0/1) |
+| `DHW_TARGET_TEMP` | `dhwT` | DHW tank target temperature (°F) |
+| `DHW_DIFFERENTIAL` | `auxDif` | DHW tank differential (TemperatureDelta) |
+| `DEMANDS` | `demands` | List of all demand channel states (hd, cd, dhw) |
 
 **Important:** `dbt` = max, `mbt` = min. These were historically swapped and fixed in v0.1.9. Do NOT swap them back.
 
@@ -104,6 +108,10 @@ Use the actual method names from the source code. Key ones that are easy to get 
 - `get_backup_state()` — NOT `get_backup()`
 - `set_permanent_hd()` / `set_permanent_cd()` — NOT `set_permanent_heat_demand()` / `set_permanent_cool_demand()`
 - `get_temperatures(temp_name=None)` — optional filter parameter
+- `get_dhw_enabled()` / `set_dhw_enabled()` — DHW demand channel on/off (`dhwOn`)
+- `get_dhw_target_temp()` / `set_dhw_target_temp()` — DHW tank setpoint (`dhwT`), returns `Temperature`
+- `get_dhw_differential()` / `set_dhw_differential()` — DHW differential (`auxDif`), returns `TemperatureDelta`
+- `get_dhw_state()` — read-only runtime state from `demands` list; returns dict with `activated`, `enabled`, `title`
 
 ## Testing
 
@@ -114,7 +122,7 @@ Use the actual method names from the source code. Key ones that are easy to get 
 - **Live tests:** Require `.env` file with `SENSORLINX_USERNAME`, `SENSORLINX_PASSWORD`, `SENSORLINX_BUILDING_ID`, `SENSORLINX_DEVICE_ID`
 - **Run all unit tests:** `pytest tests/get_parameter_test.py tests/set_parameters_test.py tests/temperature_class_test.py`
 - **Run live tests:** `pytest tests/live_test.py -s -v` (needs network + credentials)
-- **Current test count:** ~669 tests
+- **Current test count:** ~691 tests
 
 ## CI/CD Workflows
 
@@ -149,7 +157,8 @@ The HBX ECO-0600 is a heat pump staging controller for hydronic (water-based) he
 - **Weather Shutdown:** `wwsd` (warm weather) and `cwsd` (cold weather) define outdoor temps at which heating/cooling shuts off entirely.
 - **Stages:** Up to 16 heat pump stages can be managed with configurable lag times, rotation, and sequencing.
 - **Backup:** An auxiliary/backup heat source with its own differential, outdoor temp lockout, and tank temp lockout.
-- **Demands:** Heat demand (`hd`), cool demand (`cd`), and domestic hot water (`dhw`) are independent demand channels.
+- **Demands:** Heat demand (`hd`), cool demand (`cd`), and domestic hot water (`dhw`) are independent demand channels. Runtime state for all three is in the `demands` list in the device info.
+- **DHW:** Controlled via `dhwOn` (enabled bool), `dhwT` (target temp °F), and `auxDif` (differential TemperatureDelta). The DHW tank sensor appears as `temp4` / `"type": "dhw"` in the temperatures array.
 - **Temperature sensors:** Up to 4 sensor inputs (tank, outdoor, and two auxiliary). Accessed via `tB1`–`tB4` (raw) or the `temperatures` array (structured).
 
 ## Development Environment

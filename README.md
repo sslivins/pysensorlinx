@@ -155,6 +155,10 @@ A high-level wrapper around a single device. All methods are `async`.
 | `get_cold_tank_differential()` | `TemperatureDelta` | |
 | `get_cold_tank_min_temp()` | `Temperature` | |
 | `get_cold_tank_max_temp()` | `Temperature` | |
+| `get_dhw_enabled()` | `bool` | |
+| `get_dhw_target_temp()` | `Temperature` | |
+| `get_dhw_differential()` | `TemperatureDelta` | |
+| `get_dhw_state()` | `dict` | DHW demand state with `activated`, `enabled`, `title` |
 | `get_backup_lag_time()` | `int \| 'off'` | minutes |
 | `get_backup_temp()` | `Temperature \| 'off'` | |
 | `get_backup_differential()` | `TemperatureDelta \| 'off'` | |
@@ -200,6 +204,9 @@ All setters accept the value as the first argument. Temperature setters accept `
 | `set_cold_tank_min_temp(value)` | `int` (2–180 °F) |
 | `set_cold_tank_max_temp(value)` | `int` (2–180 °F) |
 | `set_cold_tank_target_temp(value)` | Alias for `set_cold_tank_min_temp` |
+| `set_dhw_enabled(value)` | `bool` |
+| `set_dhw_target_temp(value)` | `Temperature` (33–180 °F) |
+| `set_dhw_differential(value)` | `TemperatureDelta` (2–100 °F) |
 | `set_backup_lag_time(value)` | `int` (1–240 min) or `"off"` |
 | `set_backup_temp(value)` | `int` (2–100 °F) or `"off"` |
 | `set_backup_differential(value)` | `int` (2–100 °F) or `"off"` |

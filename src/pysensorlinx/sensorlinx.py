@@ -78,6 +78,10 @@ HEATPUMP_STAGES_STATE = "stages"
 BACKUP_STATE = "backup"
 BACKUP_RUNTIME = "bkRun"
 TEMPERATURE_SENSORS = "temps"
+DHW_ENABLED = "dhwOn"
+DHW_TARGET_TEMP = "dhwT"
+DHW_DIFFERENTIAL = "auxDif"
+DEMANDS = "demands"
 
 CONF_SITE_NAME = "site_name"       # The name of the site (e.g., "home")
 CONF_SENSOR_IDS = "sensor_ids"     # List of sensor IDs to extract (empty = all)
@@ -399,7 +403,10 @@ class Sensorlinx:
         backup_temp: Optional[Union[Temperature, str]] = None,
         backup_differential: Optional[Union[TemperatureDelta, str]] = None,
         backup_only_outdoor_temp: Optional[Union[Temperature, str]] = None,
-        backup_only_tank_temp: Optional[Union[Temperature, str]] = None
+        backup_only_tank_temp: Optional[Union[Temperature, str]] = None,
+        dhw_enabled: Optional[bool] = None,
+        dhw_target_temp: Optional[Temperature] = None,
+        dhw_differential: Optional[TemperatureDelta] = None,
     ) -> None:
         """
         Set permanent heating and/or cooling demand for a specific device.
@@ -436,6 +443,9 @@ class Sensorlinx:
             backup_differential (Optional[Union[TemperatureDelta, str]]): Tank temperature difference below target at which backup boiler activates, overriding backup time if needed. Use "off" to disable, or a TemperatureDelta between 2°F and 100°F.
             backup_only_outdoor_temp (Optional[Union[Temperature, str]]): The outdoor temperature below which the backup will only run (-40F to 127F) or 'off' to disable.
             backup_only_tank_temp (Union[Temperature, str]): The maximum tank temperature for heat pumps to run at. Once exceeded, only the backup will heat the tank to the target temperature. Should be set lower than the hot tank target temperature (33°F to 200°F or "off" to disable)
+            dhw_enabled (Optional[bool]): If True, enables the Domestic Hot Water demand channel. If False, disables it.
+            dhw_target_temp (Optional[Temperature]): The DHW tank target temperature (33°F to 180°F).
+            dhw_differential (Optional[TemperatureDelta]): DHW tank differential — how far below the target the tank must drop before DHW demand is triggered (2°F to 100°F).
 
         Raises:
             InvalidParameterError: If required parameters are missing or invalid.
@@ -732,6 +742,32 @@ class Sensorlinx:
                 _LOGGER.error("Backup only tank temperature must be a Temperature instance or 'off'.")
                 raise InvalidParameterError("Backup only tank temperature must be a Temperature instance or 'off'.")
             
+        # DHW Parameters
+        if dhw_enabled is not None:
+            payload[DHW_ENABLED] = dhw_enabled
+
+        if dhw_target_temp is not None:
+            if isinstance(dhw_target_temp, Temperature):
+                temp_f = dhw_target_temp.to_fahrenheit()
+                if not (33 <= temp_f <= 180):
+                    _LOGGER.error("DHW target temperature must be between 33°F and 180°F.")
+                    raise InvalidParameterError("DHW target temperature must be between 33°F and 180°F.")
+                payload[DHW_TARGET_TEMP] = round(temp_f)
+            else:
+                _LOGGER.error("DHW target temperature must be a Temperature instance.")
+                raise InvalidParameterError("DHW target temperature must be a Temperature instance.")
+
+        if dhw_differential is not None:
+            if isinstance(dhw_differential, TemperatureDelta):
+                temp_f = dhw_differential.to_fahrenheit()
+                if not (2 <= temp_f <= 100):
+                    _LOGGER.error("DHW differential must be between 2°F and 100°F.")
+                    raise InvalidParameterError("DHW differential must be between 2°F and 100°F.")
+                payload[DHW_DIFFERENTIAL] = round(temp_f)
+            else:
+                _LOGGER.error("DHW differential must be a TemperatureDelta instance.")
+                raise InvalidParameterError("DHW differential must be a TemperatureDelta instance.")
+
         if not payload:
             _LOGGER.error("At least one optional parameter must be provided")
             raise InvalidParameterError("At least one optional parameter must be provided.")
@@ -1306,7 +1342,64 @@ class SensorlinxDevice:
     #################################################################################################################################
     #                                               Domestic Hot Water Set Methods
     #################################################################################################################################
-    
+
+    async def set_dhw_enabled(self, value: bool) -> None:
+        """
+        Enable or disable the Domestic Hot Water (DHW) demand channel.
+
+        When enabled, the controller will maintain the DHW tank target temperature.
+        This can be used instead of an external DHW thermostat.
+
+        Args:
+            value (bool): True to enable DHW demand, False to disable.
+
+        Raises:
+            InvalidParameterError: If the value is invalid.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, dhw_enabled=value
+        )
+
+    async def set_dhw_target_temp(self, value: Temperature) -> None:
+        """
+        Set the Domestic Hot Water (DHW) tank target temperature.
+
+        This is the temperature the controller will maintain in the DHW tank
+        when the DHW demand channel is active. Allowed values: 33°F to 180°F.
+
+        Args:
+            value (Temperature): The target temperature as a Temperature object.
+
+        Raises:
+            InvalidParameterError: If the value is out of range or the wrong type.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, dhw_target_temp=value
+        )
+
+    async def set_dhw_differential(self, value: TemperatureDelta) -> None:
+        """
+        Set the Domestic Hot Water (DHW) tank differential.
+
+        This controls how far below the target temperature the DHW tank must drop
+        before a DHW demand is triggered. Allowed values: 2°F to 100°F.
+
+        Args:
+            value (TemperatureDelta): The differential as a TemperatureDelta object.
+
+        Raises:
+            InvalidParameterError: If the value is out of range or the wrong type.
+            LoginError: If the API call fails for login reasons.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        await self.sensorlinx.set_device_parameter(
+            self.building_id, self.device_id, dhw_differential=value
+        )
+
     #################################################################################################################################
     #                                               Backup Set Methods
     #################################################################################################################################  
@@ -1826,6 +1919,95 @@ class SensorlinxDevice:
         """
         value = await self._get_device_info_value(COLD_TANK_MAX_TEMP, device_info)
         return Temperature(value, 'F')
+
+    async def get_dhw_enabled(self, device_info: Optional[Dict] = None) -> bool:
+        """
+        Get the Domestic Hot Water (DHW) enabled state for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            bool: True if DHW demand is enabled, False otherwise.
+
+        Raises:
+            RuntimeError: If the device or DHW enabled state is not found.
+        """
+        return await self._get_device_info_value(DHW_ENABLED, device_info)
+
+    async def get_dhw_target_temp(self, device_info: Optional[Dict] = None) -> Temperature:
+        """
+        Get the Domestic Hot Water (DHW) tank target temperature for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            Temperature: The DHW target temperature (stored in °F).
+
+        Raises:
+            RuntimeError: If the device or DHW target temperature is not found.
+        """
+        value = await self._get_device_info_value(DHW_TARGET_TEMP, device_info)
+        return Temperature(value, 'F')
+
+    async def get_dhw_differential(self, device_info: Optional[Dict] = None) -> TemperatureDelta:
+        """
+        Get the Domestic Hot Water (DHW) tank differential for the device.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            TemperatureDelta: The DHW differential (stored in °F).
+
+        Raises:
+            RuntimeError: If the device or DHW differential is not found.
+        """
+        value = await self._get_device_info_value(DHW_DIFFERENTIAL, device_info)
+        return TemperatureDelta(value, 'F')
+
+    async def get_dhw_state(self, device_info: Optional[Dict] = None) -> Dict[str, Union[bool, str]]:
+        """
+        Retrieve the runtime state of the Domestic Hot Water (DHW) demand channel.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            Dict[str, Union[bool, str]]: A dictionary containing:
+                - 'activated' (bool): Whether DHW demand is currently active
+                - 'enabled' (bool): Whether the DHW channel is enabled
+                - 'title' (str): The display title (e.g., "DHW")
+
+        Raises:
+            RuntimeError: If device info or DHW demand data is not found.
+        """
+        if device_info is None:
+            try:
+                device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+            except Exception as e:
+                raise RuntimeError(f"Failed to fetch device info: {e}")
+        if not device_info:
+            raise RuntimeError("Device info not found.")
+
+        try:
+            demands = await self._get_device_info_value(DEMANDS, device_info)
+        except Exception as e:
+            raise RuntimeError(f"Failed to retrieve demands data: {e}")
+
+        if not isinstance(demands, list):
+            raise RuntimeError("Demands data must be a list.")
+
+        dhw = next((d for d in demands if d.get('name') == 'dhw'), None)
+        if dhw is None:
+            raise RuntimeError("DHW demand not found.")
+
+        return {
+            'activated': dhw.get('activated', False),
+            'enabled': dhw.get('enabled', False),
+            'title': dhw.get('title', 'DHW'),
+        }
 
     async def get_backup_lag_time(self, device_info: Optional[Dict] = None) -> Union[int, str]:
         """
