@@ -735,3 +735,25 @@ async def test_live_get_backup_state():
         pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
     finally:
         await sensorlinx.close()
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_get_device_with_invalid_id_includes_error_body():
+    """Passing an invalid device_id should raise RuntimeError whose message
+    includes the API response body (not just the status code)."""
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+
+    try:
+        await sensorlinx.login(username, password)
+        with pytest.raises(RuntimeError, match="status 400"):
+            await sensorlinx.get_devices(building_id, "INVALID-ID")
+    finally:
+        await sensorlinx.close()
