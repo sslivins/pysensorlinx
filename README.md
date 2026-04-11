@@ -3,6 +3,8 @@
 An async Python library for the [SensorLinx](https://mobile.sensorlinx.co) API. It provides full control of HBX HVAC controllers (such as the ECO-0600) — reading sensor data, getting and setting device parameters, and managing heat-pump staging, tank temperatures, backup settings, and more.
 
 [![PyPI](https://img.shields.io/pypi/v/pysensorlinx)](https://pypi.org/project/pysensorlinx/)
+[![Unit Tests](https://github.com/sslivins/pysensorlinx/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/sslivins/pysensorlinx/actions/workflows/unit_tests.yml)
+[![Live Tests](https://github.com/sslivins/pysensorlinx/actions/workflows/live_tests.yml/badge.svg)](https://github.com/sslivins/pysensorlinx/actions/workflows/live_tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Features
