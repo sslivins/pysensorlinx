@@ -775,6 +775,96 @@ async def test_get_dhw_target_temp_smoke():
 @pytest.mark.parametrize(
     "device_info, get_devices_side_effect, expected_result, expected_exception, expected_message",
     [
+        # Success: all three demands present
+        (
+            {"demands": [
+                {"name": "hd", "title": "Heat", "enabled": True, "activated": True},
+                {"name": "cd", "title": "Cool", "enabled": True, "activated": False},
+                {"name": "dhw", "title": "DHW", "enabled": True, "activated": False},
+            ]},
+            None,
+            [
+                {"activated": True, "enabled": True, "name": "hd", "title": "Heat"},
+                {"activated": False, "enabled": True, "name": "cd", "title": "Cool"},
+                {"activated": False, "enabled": True, "name": "dhw", "title": "DHW"},
+            ],
+            None,
+            None,
+        ),
+        # Success: single demand
+        (
+            {"demands": [
+                {"name": "hd", "title": "Heat", "enabled": True, "activated": False},
+            ]},
+            None,
+            [
+                {"activated": False, "enabled": True, "name": "hd", "title": "Heat"},
+            ],
+            None,
+            None,
+        ),
+        # Success: missing optional fields get defaults
+        (
+            {"demands": [
+                {"name": "hd"},
+            ]},
+            None,
+            [
+                {"activated": False, "enabled": False, "name": "hd", "title": ""},
+            ],
+            None,
+            None,
+        ),
+        # Failure: demands not a list
+        (
+            {"demands": {"name": "hd"}},
+            None,
+            None,
+            RuntimeError,
+            "Demands data must be a list.",
+        ),
+        # Failure: device_info is None, get_devices returns None
+        (
+            None,
+            None,
+            None,
+            RuntimeError,
+            "Device info not found.",
+        ),
+        # Failure: get_devices raises exception
+        (
+            None,
+            Exception("network error"),
+            None,
+            RuntimeError,
+            "Failed to fetch device info: network error",
+        ),
+    ]
+)
+async def test_get_demands_cases(device_info, get_devices_side_effect, expected_result, expected_exception, expected_message):
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+
+    if device_info is None:
+        if isinstance(get_devices_side_effect, Exception):
+            sensorlinx.get_devices = AsyncMock(side_effect=get_devices_side_effect)
+        else:
+            sensorlinx.get_devices = AsyncMock(return_value=get_devices_side_effect)
+        call_device_info = None
+    else:
+        call_device_info = device_info
+
+    if expected_exception:
+        with pytest.raises(expected_exception, match=expected_message):
+            await device.get_demands(device_info=call_device_info)
+    else:
+        result = await device.get_demands(device_info=call_device_info)
+        assert result == expected_result
+
+@pytest.mark.get_params
+@pytest.mark.parametrize(
+    "device_info, get_devices_side_effect, expected_result, expected_exception, expected_message",
+    [
         # Success: DHW present and enabled
         (
             {"demands": [
@@ -852,6 +942,177 @@ async def test_get_dhw_state_cases(device_info, get_devices_side_effect, expecte
     else:
         result = await device.get_dhw_state(device_info=call_device_info)
         assert result == expected_result
+
+FULL_DEVICE_INFO = {
+    "demands": [
+        {"name": "hd", "title": "Heat", "enabled": True, "activated": True},
+        {"name": "cd", "title": "Cool", "enabled": True, "activated": False},
+        {"name": "dhw", "title": "DHW", "enabled": True, "activated": False},
+    ],
+    "temperatures": [
+        {
+            "activated": True, "activatedColor": "green", "activatedState": "satisfied",
+            "current": 107.7, "enabled": True, "target": 103.2,
+            "title": "Tank", "type": "single",
+            "priority": {"enabled": True, "title": "Heating", "type": "hot"},
+        },
+        {
+            "activated": False, "activatedColor": None, "activatedState": None,
+            "current": None, "enabled": False, "target": None,
+            "title": None, "type": None,
+            "priority": {"enabled": False, "title": "Heating", "type": "hot"},
+        },
+        {
+            "activated": False, "activatedColor": None, "activatedState": None,
+            "current": 49.6, "enabled": True, "target": None,
+            "title": "Outdoor", "type": "outdoor",
+            "priority": {"enabled": False, "title": "Heating", "type": "hot"},
+        },
+        {
+            "activated": False, "activatedColor": None, "activatedState": None,
+            "current": 121.6, "enabled": True, "target": 119,
+            "title": "DHW Tank", "type": "dhw",
+            "priority": {"enabled": False, "title": "Heating", "type": "hot"},
+        },
+    ],
+    "stages": [
+        {"activated": False, "device": "AECO-0982", "enabled": True,
+         "index": 1, "runTime": "3455:32", "title": "Stage 1"},
+    ],
+    "backup": {"activated": False, "enabled": False, "runTime": "65535:00", "title": "Backup"},
+    "pumps": [
+        {"activated": False, "title": "Pump 1"},
+        {"activated": False, "title": "Pump 2"},
+    ],
+    "pmp1Set": 1,
+    "pmp2Set": 3,
+    "reversingValve": {"activated": False, "title": "Reversing Valve"},
+    "wsd": {
+        "wwsd": {"activated": False, "title": "WWSD"},
+        "cwsd": {"activated": False, "title": "CWSD"},
+    },
+}
+
+@pytest.mark.get_params
+async def test_get_system_state_full():
+    """All sections present and populated."""
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+
+    result = await device.get_system_state(device_info=FULL_DEVICE_INFO)
+
+    # Demands
+    assert len(result['demands']) == 3
+    assert result['demands'][0] == {'activated': True, 'enabled': True, 'name': 'hd', 'title': 'Heat'}
+
+    # Temperatures — disabled sensor filtered out
+    assert len(result['temperatures']) == 3
+    tank = result['temperatures'][0]
+    assert tank['title'] == 'Tank'
+    assert tank['type'] == 'single'
+    assert tank['activatedState'] == 'satisfied'
+    assert isinstance(tank['current'], Temperature)
+    assert tank['current'].to_fahrenheit() == 107.7
+    assert isinstance(tank['target'], Temperature)
+    assert tank['target'].to_fahrenheit() == 103.2
+
+    outdoor = result['temperatures'][1]
+    assert outdoor['title'] == 'Outdoor'
+    assert outdoor['target'] is None
+
+    dhw_tank = result['temperatures'][2]
+    assert dhw_tank['type'] == 'dhw'
+    assert isinstance(dhw_tank['current'], Temperature)
+
+    # Stages
+    assert len(result['stages']) == 1
+    assert result['stages'][0]['activated'] is False
+    assert result['stages'][0]['title'] == 'Stage 1'
+
+    # Backup
+    assert result['backup']['activated'] is False
+    assert result['backup']['enabled'] is False
+
+    # Pumps — mode resolved from pmp1Set/pmp2Set
+    assert len(result['pumps']) == 2
+    assert result['pumps'][0] == {'activated': False, 'title': 'Pump 1', 'mode': 'heating'}
+    assert result['pumps'][1] == {'activated': False, 'title': 'Pump 2', 'mode': 'dhw'}
+
+    # Reversing valve
+    assert result['reversingValve'] == {'activated': False, 'title': 'Reversing Valve'}
+
+    # Weather shutdown
+    assert result['weatherShutdown']['wwsd'] == {'activated': False, 'title': 'WWSD'}
+    assert result['weatherShutdown']['cwsd'] == {'activated': False, 'title': 'CWSD'}
+
+
+@pytest.mark.get_params
+async def test_get_system_state_missing_optional_sections():
+    """Sections missing from device_info return None instead of raising."""
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+
+    minimal_info = {
+        "demands": [
+            {"name": "hd", "title": "Heat", "enabled": True, "activated": False},
+        ],
+        "stages": [
+            {"activated": False, "enabled": True, "index": 1, "title": "Stage 1",
+             "device": "X", "runTime": "0:00"},
+        ],
+        "backup": {"activated": False, "enabled": False, "title": "Backup", "runTime": "0:00"},
+    }
+    result = await device.get_system_state(device_info=minimal_info)
+
+    assert result['demands'] is not None
+    assert result['stages'] is not None
+    assert result['backup'] is not None
+    assert result['temperatures'] is None
+    assert result['pumps'] is None
+    assert result['reversingValve'] is None
+    assert result['weatherShutdown'] is None
+
+
+@pytest.mark.get_params
+async def test_get_system_state_device_info_none_fetch_failure():
+    """Raises RuntimeError when device_info is None and fetch fails."""
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+    sensorlinx.get_devices = AsyncMock(side_effect=Exception("network error"))
+
+    with pytest.raises(RuntimeError, match="Failed to fetch device info: network error"):
+        await device.get_system_state()
+
+
+@pytest.mark.get_params
+async def test_get_system_state_device_info_empty():
+    """Raises RuntimeError when device_info is empty."""
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+
+    with pytest.raises(RuntimeError, match="Device info not found."):
+        await device.get_system_state(device_info={})
+
+
+@pytest.mark.get_params
+async def test_get_system_state_pump_unknown_mode():
+    """Unknown pump mode value renders as 'unknown (N)'."""
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+
+    info = {
+        "demands": [],
+        "temperatures": [],
+        "stages": [],
+        "backup": {"activated": False, "enabled": False, "title": "Backup", "runTime": "0:00"},
+        "pumps": [{"activated": True, "title": "Pump 1"}],
+        "pmp1Set": 99,
+        "reversingValve": {"activated": False, "title": "RV"},
+        "wsd": {"wwsd": {"activated": False, "title": "WWSD"}, "cwsd": {"activated": False, "title": "CWSD"}},
+    }
+    result = await device.get_system_state(device_info=info)
+    assert result['pumps'][0]['mode'] == 'unknown (99)'
+
 
 SAMPLE_BUILDING_INFO= {
     "weather": {

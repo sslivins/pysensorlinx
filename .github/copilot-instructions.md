@@ -160,7 +160,8 @@ The HBX ECO-0600 is a heat pump staging controller for hydronic (water-based) he
 - **Weather:** Current conditions and forecast are stored at the building level (not device level). Accessed via `get_buildings(building_id)` — the building dict has a `weather.weather` key (current conditions) and `weather.forecast` key (list of periods). Both `get_current_weather()` and `get_forecast()` on `SensorlinxDevice` accept an optional `building_info` dict to avoid redundant API calls. Temperatures in weather data are in °F and are returned as `Temperature` objects.
 - **Demands:** Heat demand (`hd`), cool demand (`cd`), and domestic hot water (`dhw`) are independent demand channels. Runtime state for all three is in the `demands` list in the device info.
 - **DHW:** Controlled via `dhwOn` (enabled bool), `dhwT` (target temp °F), and `auxDif` (differential TemperatureDelta). The DHW tank sensor appears as `temp4` / `"type": "dhw"` in the temperatures array.
-- **Temperature sensors:** Up to 4 sensor inputs (tank, outdoor, and two auxiliary). Accessed via `tB1`–`tB4` (raw) or the `temperatures` array (structured).
+- **Pumps:** Two configurable pump outputs (`pmp1Set`, `pmp2Set`). Each is assigned a mode: `0`=System, `1`=Heating, `2`=Cooling, `3`=DHW, `4`=App, `5`=None. Pumps are associated with demand calls, not tanks. Runtime state is in the `pumps` array; mode config is in `pmp1Set`/`pmp2Set`.
+- **Temperature sensors:** Up to 4 sensor inputs (tank, outdoor, and two auxiliary). Accessed via `tB1`–`tB4` (raw) or the `temperatures` array (structured). The enhanced `temperatures` array includes `activatedState` (e.g., `"satisfied"`) and `type` (e.g., `"single"`, `"outdoor"`, `"dhw"`).
 
 ## Development Environment
 
