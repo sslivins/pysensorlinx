@@ -162,9 +162,15 @@ async def main():
         # Auto-discover building and device if not specified
         if not building_id:
             buildings = await api.get_buildings()
+            if not buildings:
+                print("No buildings found on this account. Set SENSORLINX_BUILDING_ID to specify one.", file=sys.stderr)
+                sys.exit(1)
             building_id = buildings[0]["id"]
         if not device_id:
             devices = await api.get_devices(building_id)
+            if not devices:
+                print(f"No devices found in building {building_id}. Set SENSORLINX_DEVICE_ID to specify one.", file=sys.stderr)
+                sys.exit(1)
             device_id = devices[0]["syncCode"]
 
         device = SensorlinxDevice(api, building_id, device_id)

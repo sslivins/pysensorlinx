@@ -1114,6 +1114,43 @@ async def test_get_system_state_pump_unknown_mode():
     assert result['pumps'][0]['mode'] == 'unknown (99)'
 
 
+@pytest.mark.get_params
+async def test_get_dhw_state_tolerates_sparse_demand_entry():
+    """Regression guard: get_dhw_state must handle an upstream DHW demand
+    that is missing optional fields. If get_demands' default-supplying
+    contract is ever weakened, this test will catch the resulting KeyError.
+    """
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+
+    # Upstream returns a dhw entry with only 'name' — all other fields absent.
+    sparse_info = {"demands": [{"name": "dhw"}]}
+
+    result = await device.get_dhw_state(device_info=sparse_info)
+    assert result == {"activated": False, "enabled": False, "title": ""}
+
+
+@pytest.mark.get_params
+async def test_get_demands_supplies_defaults_for_sparse_entries():
+    """Regression guard: get_demands must always return dicts with all
+    four canonical keys (activated, enabled, name, title), even when the
+    upstream API omits fields. get_dhw_state and get_system_state depend
+    on this contract.
+    """
+    sensorlinx = Sensorlinx()
+    device = SensorlinxDevice(sensorlinx, "building123", "device456")
+
+    info = {"demands": [{"name": "hd"}, {"name": "cd"}, {"name": "dhw"}]}
+    result = await device.get_demands(device_info=info)
+
+    assert len(result) == 3
+    for entry in result:
+        assert set(entry.keys()) == {"activated", "enabled", "name", "title"}
+        assert entry["activated"] is False
+        assert entry["enabled"] is False
+        assert entry["title"] == ""
+
+
 SAMPLE_BUILDING_INFO= {
     "weather": {
         "weather": {
