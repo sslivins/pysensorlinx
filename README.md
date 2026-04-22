@@ -162,6 +162,7 @@ A high-level wrapper around a single device. All methods are `async`.
 | `get_dhw_target_temp()` | `Temperature` | |
 | `get_dhw_differential()` | `TemperatureDelta` | |
 | `get_dhw_state()` | `dict` | DHW demand state with `activated`, `enabled`, `title` |
+| `get_demands()` | `list[dict]` | All demand channels (hd, cd, dhw) with `activated`, `enabled`, `name`, `title` |
 | `get_backup_lag_time()` | `int \| 'off'` | minutes |
 | `get_backup_temp()` | `Temperature \| 'off'` | |
 | `get_backup_differential()` | `TemperatureDelta \| 'off'` | |
@@ -177,6 +178,7 @@ A high-level wrapper around a single device. All methods are `async`.
 | `get_backup_state()` | `dict` | Backup state with `activated`, `enabled`, `title`, `runTime` |
 | `get_current_weather()` | `dict` | Current conditions: `temp`, `feelsLike`, `min`, `max` as `Temperature`; `pressure`, `humidity`, `wind`, `windDir`, `clouds`, `snow`, `rain`, `description`, `icon`, `weatherId` |
 | `get_forecast()` | `list[dict]` | Forecast periods: `time` as `datetime`, `temp`/`min`/`max` as `Temperature`, `pop`, `snow`, `description`, `icon`, `weatherId` |
+| `get_system_state()` | `dict` | Bundled runtime state: `demands`, `temperatures`, `stages`, `backup`, `pumps`, `reversingValve`, `weatherShutdown` |
 
 #### Weather conditions
 

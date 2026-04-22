@@ -82,6 +82,21 @@ DHW_ENABLED = "dhwOn"
 DHW_TARGET_TEMP = "dhwT"
 DHW_DIFFERENTIAL = "auxDif"
 DEMANDS = "demands"
+PUMPS = "pumps"
+PUMP_1_MODE = "pmp1Set"
+PUMP_2_MODE = "pmp2Set"
+REVERSING_VALVE = "reversingValve"
+WEATHER_SHUTDOWN_STATUS = "wsd"
+TEMPERATURES_ENHANCED = "temperatures"
+
+PUMP_MODES = {
+    0: "system",
+    1: "heating",
+    2: "cooling",
+    3: "dhw",
+    4: "app",
+    5: "none",
+}
 
 CONF_SITE_NAME = "site_name"       # The name of the site (e.g., "home")
 CONF_SENSOR_IDS = "sensor_ids"     # List of sensor IDs to extract (empty = all)
@@ -1972,21 +1987,22 @@ class SensorlinxDevice:
         value = await self._get_device_info_value(DHW_DIFFERENTIAL, device_info)
         return TemperatureDelta(value, 'F')
 
-    async def get_dhw_state(self, device_info: Optional[Dict] = None) -> Dict[str, Union[bool, str]]:
+    async def get_demands(self, device_info: Optional[Dict] = None) -> List[Dict[str, Union[bool, str]]]:
         """
-        Retrieve the runtime state of the Domestic Hot Water (DHW) demand channel.
+        Retrieve the state of all demand channels (heat, cool, DHW).
 
         Args:
             device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
 
         Returns:
-            Dict[str, Union[bool, str]]: A dictionary containing:
-                - 'activated' (bool): Whether DHW demand is currently active
-                - 'enabled' (bool): Whether the DHW channel is enabled
-                - 'title' (str): The display title (e.g., "DHW")
+            List[Dict[str, Union[bool, str]]]: A list of dictionaries, each containing:
+                - 'activated' (bool): Whether this demand is currently active
+                - 'enabled' (bool): Whether this demand channel is enabled
+                - 'name' (str): The demand channel identifier ('hd', 'cd', 'dhw')
+                - 'title' (str): The display title (e.g., "Heat", "Cool", "DHW")
 
         Raises:
-            RuntimeError: If device info or DHW demand data is not found.
+            RuntimeError: If device info or demands data is not found.
         """
         if device_info is None:
             try:
@@ -2004,14 +2020,168 @@ class SensorlinxDevice:
         if not isinstance(demands, list):
             raise RuntimeError("Demands data must be a list.")
 
-        dhw = next((d for d in demands if d.get('name') == 'dhw'), None)
+        return [
+            {
+                'activated': d.get('activated', False),
+                'enabled': d.get('enabled', False),
+                'name': d.get('name', ''),
+                'title': d.get('title', ''),
+            }
+            for d in demands
+        ]
+
+    async def get_dhw_state(self, device_info: Optional[Dict] = None) -> Dict[str, Union[bool, str]]:
+        """
+        Retrieve the runtime state of the Domestic Hot Water (DHW) demand channel.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            Dict[str, Union[bool, str]]: A dictionary containing:
+                - 'activated' (bool): Whether DHW demand is currently active
+                - 'enabled' (bool): Whether the DHW channel is enabled
+                - 'title' (str): The display title (e.g., "DHW")
+
+        Raises:
+            RuntimeError: If device info or DHW demand data is not found.
+        """
+        all_demands = await self.get_demands(device_info)
+        dhw = next((d for d in all_demands if d.get('name') == 'dhw'), None)
         if dhw is None:
             raise RuntimeError("DHW demand not found.")
 
         return {
-            'activated': dhw.get('activated', False),
-            'enabled': dhw.get('enabled', False),
-            'title': dhw.get('title', 'DHW'),
+            'activated': dhw['activated'],
+            'enabled': dhw['enabled'],
+            'title': dhw['title'],
+        }
+
+    async def get_system_state(self, device_info: Optional[Dict] = None) -> Dict:
+        """
+        Retrieve the complete runtime state of the system in a single API call.
+
+        Bundles demands, temperatures, heat pump stages, backup, pumps,
+        reversing valve, and weather shutdown status into one response.
+
+        Args:
+            device_info (Optional[Dict]): If provided, use this device_info dict instead of fetching from API.
+
+        Returns:
+            Dict containing:
+                - 'demands' (list): Demand channels with 'activated', 'enabled', 'name', 'title'
+                - 'temperatures' (list): Enabled sensors with 'title', 'type', 'current', 'target',
+                  'activated', 'activatedState', 'enabled'
+                - 'stages' (list): Heat pump stages with 'activated', 'enabled', 'title', 'device',
+                  'index', 'runTime'
+                - 'backup' (dict): Backup state with 'activated', 'enabled', 'title', 'runTime'
+                - 'pumps' (list): Pump states with 'activated', 'title', 'mode'
+                - 'reversingValve' (dict): Reversing valve with 'activated', 'title'
+                - 'weatherShutdown' (dict): WWSD/CWSD status dicts with 'activated', 'title'
+
+            Any section that cannot be parsed returns None instead of raising.
+
+        Raises:
+            RuntimeError: If device info cannot be fetched.
+        """
+        if device_info is None:
+            try:
+                device_info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+            except Exception as e:
+                raise RuntimeError(f"Failed to fetch device info: {e}")
+        if not device_info:
+            raise RuntimeError("Device info not found.")
+
+        # Demands — delegate to existing method
+        try:
+            demands = await self.get_demands(device_info)
+        except Exception:
+            demands = None
+
+        # Temperatures — use the enhanced 'temperatures' array
+        try:
+            temps_data = await self._get_device_info_value(TEMPERATURES_ENHANCED, device_info)
+            temperatures = []
+            for t in temps_data:
+                if not t.get('enabled', False):
+                    continue
+                current = t.get('current')
+                target = t.get('target')
+                temperatures.append({
+                    'title': t.get('title'),
+                    'type': t.get('type'),
+                    'current': Temperature(current, 'F') if current is not None else None,
+                    'target': Temperature(target, 'F') if target is not None else None,
+                    'activated': t.get('activated', False),
+                    'activatedState': t.get('activatedState'),
+                    'enabled': True,
+                })
+        except Exception:
+            temperatures = None
+
+        # Stages — delegate to existing method
+        try:
+            stages = await self.get_heatpump_stages_state(device_info)
+        except Exception:
+            stages = None
+
+        # Backup — delegate to existing method
+        try:
+            backup = await self.get_backup_state(device_info)
+        except Exception:
+            backup = None
+
+        # Pumps — merge state array with mode config
+        try:
+            pumps_data = await self._get_device_info_value(PUMPS, device_info)
+            pump_mode_keys = [PUMP_1_MODE, PUMP_2_MODE]
+            pumps = []
+            for i, p in enumerate(pumps_data):
+                mode_value = None
+                if i < len(pump_mode_keys):
+                    try:
+                        mode_value = await self._get_device_info_value(pump_mode_keys[i], device_info)
+                    except Exception:
+                        pass
+                pumps.append({
+                    'activated': p.get('activated', False),
+                    'title': p.get('title', ''),
+                    'mode': PUMP_MODES.get(mode_value, f"unknown ({mode_value})") if mode_value is not None else None,
+                })
+        except Exception:
+            pumps = None
+
+        # Reversing Valve
+        try:
+            rv_data = await self._get_device_info_value(REVERSING_VALVE, device_info)
+            reversing_valve = {
+                'activated': rv_data.get('activated', False),
+                'title': rv_data.get('title', 'Reversing Valve'),
+            }
+        except Exception:
+            reversing_valve = None
+
+        # Weather Shutdown Status
+        try:
+            wsd_data = await self._get_device_info_value(WEATHER_SHUTDOWN_STATUS, device_info)
+            weather_shutdown = {}
+            for key in ('wwsd', 'cwsd'):
+                entry = wsd_data.get(key, {})
+                weather_shutdown[key] = {
+                    'activated': entry.get('activated', False),
+                    'title': entry.get('title', key.upper()),
+                }
+        except Exception:
+            weather_shutdown = None
+
+        return {
+            'demands': demands,
+            'temperatures': temperatures,
+            'stages': stages,
+            'backup': backup,
+            'pumps': pumps,
+            'reversingValve': reversing_valve,
+            'weatherShutdown': weather_shutdown,
         }
 
     async def get_backup_lag_time(self, device_info: Optional[Dict] = None) -> Union[int, str]:
