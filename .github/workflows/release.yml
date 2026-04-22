@@ -1,0 +1,186 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'examples/**'
+      - '.github/**'
+      - '.env.example'
+      - '.gitignore'
+      - 'LICENSE'
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  live-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[tests]
+      - name: Run live tests
+        env:
+          SENSORLINX_EMAIL: ${{ secrets.SENSORLINX_EMAIL }}
+          SENSORLINX_PASSWORD: ${{ secrets.SENSORLINX_PASSWORD }}
+          SENSORLINX_BUILDING_ID: ${{ secrets.SENSORLINX_BUILDING_ID }}
+          SENSORLINX_DEVICE_ID: ${{ secrets.SENSORLINX_DEVICE_ID }}
+        run: pytest -s -m live
+
+  publish:
+    needs: live-tests
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Read version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(python -c "import re; print(re.search(r'version\s*=\s*\"(.+?)\"', open('pyproject.toml').read()).group(1))")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Detected version: v${VERSION}"
+
+      - name: Check tag does not already exist
+        run: |
+          if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::error::Tag ${{ steps.version.outputs.tag }} already exists. Version in pyproject.toml must be ahead of the last published tag."
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Build sdist and wheel
+        run: python -m build --sdist --wheel
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${TAG}$" | head -n1)
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="${PREV_TAG}..HEAD"
+          fi
+          echo "Generating changelog: ${PREV_TAG:-initial}..${TAG}"
+
+          FEATURES=$(git log ${RANGE} --oneline --no-merges --grep="^feat" | sed 's/^[a-f0-9]* feat[^:]*: //' || true)
+          FIXES=$(git log ${RANGE} --oneline --no-merges --grep="^fix" | sed 's/^[a-f0-9]* fix[^:]*: //' || true)
+          TESTS=$(git log ${RANGE} --oneline --no-merges --grep="^test" | sed 's/^[a-f0-9]* test[^:]*: //' || true)
+          DOCS=$(git log ${RANGE} --oneline --no-merges --grep="^docs" | sed 's/^[a-f0-9]* docs[^:]*: //' || true)
+          CHORE=$(git log ${RANGE} --oneline --no-merges --grep="^chore" | sed 's/^[a-f0-9]* chore[^:]*: //' || true)
+          CI_CHANGES=$(git log ${RANGE} --oneline --no-merges --grep="^ci" | sed 's/^[a-f0-9]* ci[^:]*: //' || true)
+
+          {
+            echo "## pysensorlinx ${TAG}"
+            echo ""
+            if [ -n "$FEATURES" ]; then
+              echo "### ✨ Features"
+              echo "$FEATURES" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Fixes"
+              echo "$FIXES" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$TESTS" ]; then
+              echo "### 🧪 Tests"
+              echo "$TESTS" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$DOCS" ]; then
+              echo "### 📝 Documentation"
+              echo "$DOCS" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$CHORE" ]; then
+              echo "### 🧹 Chores"
+              echo "$CHORE" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$CI_CHANGES" ]; then
+              echo "### 🔧 CI"
+              echo "$CI_CHANGES" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+            if [ -n "$PREV_TAG" ]; then
+              echo "**Full diff:** https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
+            fi
+          } > /tmp/release_body.md
+
+          cat /tmp/release_body.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: pysensorlinx ${{ steps.version.outputs.tag }}
+          body_path: /tmp/release_body.md
+          files: dist/*
+
+      - name: Publish package to PyPI via OIDC
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  bump-main:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          # GITHUB_TOKEN works if main is unprotected, or if
+          # github-actions[bot] is on the branch-protection bypass list.
+          # If main is PR-protected and the bot can't bypass, set the
+          # VERSION_BUMP_TOKEN secret (fine-grained PAT with contents:write).
+          token: ${{ secrets.VERSION_BUMP_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Bump patch version and push
+        run: |
+          set -euo pipefail
+          current=$(python3 -c "import re; print(re.search(r'version\s*=\s*\"(.+?)\"', open('pyproject.toml').read()).group(1))")
+          IFS=. read -r major minor patch <<< "$current"
+          next="${major}.${minor}.$((patch + 1))"
+          echo "Bumping: $current → $next"
+          sed -i -E "0,/^version = \"[^\"]+\"/s//version = \"$next\"/" pyproject.toml
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          git commit -m "chore: bump version to $next [skip ci]" \
+                     -m "Auto-bumped by release.yml after ${{ needs.publish.outputs.tag }}." \
+                     -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+          git push origin HEAD:main
