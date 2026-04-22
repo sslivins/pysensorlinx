@@ -757,3 +757,167 @@ async def test_live_get_device_with_invalid_id_includes_error_body():
             await sensorlinx.get_devices(building_id, "INVALID-ID")
     finally:
         await sensorlinx.close()
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_get_demands():
+    """Verify get_demands() shape against the live API.
+    Flags upstream schema drift (renamed/removed keys, changed demand channel names)."""
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    try:
+        await sensorlinx.login(username, password)
+        sensorlinxdevice = SensorlinxDevice(
+            sensorlinx=sensorlinx,
+            building_id=building_id,
+            device_id=device_id
+        )
+        demands = await sensorlinxdevice.get_demands()
+        pprint.pprint(demands)
+        assert demands is not None, "Failed to fetch demands"
+        assert isinstance(demands, list), "Demands response is not a list"
+        assert len(demands) > 0, "Expected at least one demand channel"
+
+        for entry in demands:
+            assert isinstance(entry, dict), f"Demand entry is not a dict: {entry}"
+            assert set(entry.keys()) == {"activated", "enabled", "name", "title"}, \
+                f"Demand entry keys mismatch: {set(entry.keys())}"
+            assert isinstance(entry["activated"], bool), "'activated' should be a bool"
+            assert isinstance(entry["enabled"], bool), "'enabled' should be a bool"
+            assert isinstance(entry["name"], str), "'name' should be a string"
+            assert isinstance(entry["title"], str), "'title' should be a string"
+
+        names = {d["name"] for d in demands}
+        assert {"hd", "cd", "dhw"}.issubset(names), \
+            f"Expected hd/cd/dhw demand channels, got: {names}"
+    except Exception as e:
+        print(f"Test failed due to exception: {type(e).__name__}: {e}")
+        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+    finally:
+        await sensorlinx.close()
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_get_dhw_state():
+    """Verify get_dhw_state() shape against the live API.
+    Flags regressions in the get_demands -> get_dhw_state delegation path."""
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    try:
+        await sensorlinx.login(username, password)
+        sensorlinxdevice = SensorlinxDevice(
+            sensorlinx=sensorlinx,
+            building_id=building_id,
+            device_id=device_id
+        )
+        dhw_state = await sensorlinxdevice.get_dhw_state()
+        pprint.pprint(dhw_state)
+        assert dhw_state is not None, "Failed to fetch DHW state"
+        assert isinstance(dhw_state, dict), "DHW state response is not a dict"
+        assert set(dhw_state.keys()) == {"activated", "enabled", "title"}, \
+            f"DHW state keys mismatch: {set(dhw_state.keys())}"
+        assert isinstance(dhw_state["activated"], bool), "'activated' should be a bool"
+        assert isinstance(dhw_state["enabled"], bool), "'enabled' should be a bool"
+        assert isinstance(dhw_state["title"], str), "'title' should be a string"
+    except Exception as e:
+        print(f"Test failed due to exception: {type(e).__name__}: {e}")
+        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+    finally:
+        await sensorlinx.close()
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("SENSORLINX_EMAIL") or not os.getenv("SENSORLINX_PASSWORD") or not os.getenv("SENSORLINX_BUILDING_ID") or not os.getenv("SENSORLINX_DEVICE_ID"),
+    reason="SENSORLINX_EMAIL or SENSORLINX_PASSWORD or SENSORLINX_BUILDING_ID or SENSORLINX_DEVICE_ID environment variable not set"
+)
+@pytest.mark.asyncio
+async def test_live_get_system_state():
+    """Verify get_system_state() shape against the live API.
+    Flags upstream schema drift across any of the bundled sections."""
+    sensorlinx = Sensorlinx()
+    username = os.getenv("SENSORLINX_EMAIL")
+    password = os.getenv("SENSORLINX_PASSWORD")
+    building_id = os.getenv("SENSORLINX_BUILDING_ID")
+    device_id = os.getenv("SENSORLINX_DEVICE_ID")
+
+    try:
+        await sensorlinx.login(username, password)
+        sensorlinxdevice = SensorlinxDevice(
+            sensorlinx=sensorlinx,
+            building_id=building_id,
+            device_id=device_id
+        )
+        state = await sensorlinxdevice.get_system_state()
+        pprint.pprint(state)
+        assert state is not None, "Failed to fetch system state"
+        assert isinstance(state, dict), "System state response is not a dict"
+
+        expected_keys = {
+            "backup", "demands", "pumps", "reversingValve",
+            "stages", "temperatures", "weatherShutdown",
+        }
+        assert expected_keys.issubset(state.keys()), \
+            f"System state missing top-level keys. Expected {expected_keys}, got {set(state.keys())}"
+
+        # demands
+        assert isinstance(state["demands"], list), "'demands' should be a list"
+        for d in state["demands"]:
+            assert {"activated", "enabled", "name", "title"}.issubset(d.keys())
+
+        # temperatures
+        assert isinstance(state["temperatures"], list), "'temperatures' should be a list"
+        for t in state["temperatures"]:
+            assert {"activated", "activatedState", "current", "enabled", "target", "title", "type"}.issubset(t.keys())
+
+        # stages
+        assert isinstance(state["stages"], list), "'stages' should be a list"
+        for s in state["stages"]:
+            assert {"activated", "device", "enabled", "index", "runTime", "title"}.issubset(s.keys())
+
+        # backup
+        backup = state["backup"]
+        assert isinstance(backup, dict), "'backup' should be a dict"
+        assert {"activated", "enabled", "runTime", "title"}.issubset(backup.keys())
+
+        # pumps — mode should never be the 'unknown (N)' fallback string for a healthy install
+        assert isinstance(state["pumps"], list), "'pumps' should be a list"
+        for p in state["pumps"]:
+            assert {"activated", "mode", "title"}.issubset(p.keys())
+            assert not str(p["mode"]).startswith("unknown ("), \
+                f"Pump mode '{p['mode']}' not in PUMP_MODES map - upstream added a new mode value"
+
+        # reversingValve
+        rv = state["reversingValve"]
+        assert isinstance(rv, dict), "'reversingValve' should be a dict"
+        assert {"activated", "title"}.issubset(rv.keys())
+
+        # weatherShutdown
+        ws = state["weatherShutdown"]
+        assert isinstance(ws, dict), "'weatherShutdown' should be a dict"
+        assert {"wwsd", "cwsd"}.issubset(ws.keys())
+        for key in ("wwsd", "cwsd"):
+            assert {"activated", "title"}.issubset(ws[key].keys())
+    except Exception as e:
+        print(f"Test failed due to exception: {type(e).__name__}: {e}")
+        pytest.fail(f"Test failed due to exception: {type(e).__name__}: {e}")
+    finally:
+        await sensorlinx.close()
