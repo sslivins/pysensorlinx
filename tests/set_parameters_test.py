@@ -12,12 +12,17 @@ def sensorlinx_device_with_patch():
     )
     
     sensorlinx._session = MagicMock()
+    sensorlinx._session.closed = False
+    sensorlinx._bearer_token = "fake-bearer-token-for-tests"
+    sensorlinx.headers["Authorization"] = f"Bearer {sensorlinx._bearer_token}"
     mock_patch = MagicMock()
     mock_response = MagicMock()
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
     mock_response.status = 200
+    mock_response.headers = {"Content-Type": "application/json"}
     mock_response.json = AsyncMock(return_value={})
+    mock_response.text = AsyncMock(return_value="{}")
     mock_patch.return_value = mock_response
     sensorlinx._session.patch = mock_patch
     return sensorlinx, device, mock_patch

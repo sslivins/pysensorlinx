@@ -202,7 +202,11 @@ class Sensorlinx:
         self._session = None
         self._bearer_token = None
         self._refresh_token = None
-        
+        # Serializes login / cleanup / 401-driven reauth so concurrent
+        # callers (HA coordinator + service calls) cannot race on the
+        # session object.
+        self._auth_lock = asyncio.Lock()
+
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) "
                         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 "
@@ -213,10 +217,37 @@ class Sensorlinx:
         self.proxy_url = None  # Set to None to disable proxy, or provide a valid proxy URL if needed
                         
         
-    
+    @property
+    def is_logged_in(self) -> bool:
+        """True iff there is an open session AND a bearer token."""
+        return self._session is not None and not self._session.closed and bool(self._bearer_token)
+
+    async def _cleanup_session(self) -> None:
+        """Close the aiohttp session and clear auth tokens.
+
+        Cached credentials (``_username`` / ``_password``) are *not* cleared
+        here so that a subsequent ``login()`` call can transparently
+        reauthenticate. Use :meth:`close` for an explicit shutdown that
+        also forgets credentials.
+        """
+        if self._session is not None:
+            try:
+                if not self._session.closed:
+                    await self._session.close()
+            except Exception:  # pragma: no cover - close shouldn't raise
+                _LOGGER.exception("Error closing session during cleanup")
+        self._session = None
+        self._bearer_token = None
+        self._refresh_token = None
+        self.headers.pop("Authorization", None)
+
     async def login(self, username: str=None, password: str=None) -> None:
         """
         Attempt to log in to the Sensorlinx service.
+
+        Idempotent: if the client is already logged in and no new
+        credentials are supplied, this is a no-op. On any failure the
+        client is left in a clean, not-logged-in state.
 
         Args:
             username (str, optional): The username to use for login.
@@ -228,20 +259,45 @@ class Sensorlinx:
             NoTokenError: If no bearer token is received after login.
             LoginError: For other login-related errors.
         """
-        if not username or not password:
-            if not self._username or not self._password:
-                _LOGGER.error("No username or password provided.")
-                raise InvalidCredentialsError("No username or password provided.")
-        else:
+        async with self._auth_lock:
+            await self._login_locked(username, password)
+
+    async def _login_locked(self, username: str=None, password: str=None) -> None:
+        new_creds_supplied = bool(username and password)
+        new_creds_match_cached = (
+            new_creds_supplied
+            and username == self._username
+            and password == self._password
+        )
+
+        # Idempotent fast-path: already authenticated, and either no
+        # fresh credentials were supplied or they match the cached ones.
+        # Check this BEFORE mutating cached creds so a true rotation
+        # (different new creds) is not mistaken for a no-op.
+        if self.is_logged_in and (not new_creds_supplied or new_creds_match_cached):
+            return
+
+        if new_creds_supplied:
+            # Cache eagerly so that a first-ever transient failure can
+            # still self-heal on the next call (the failed attempt at
+            # least leaves us with the user's intended credentials).
             self._username = username
             self._password = password
+        elif not (self._username and self._password):
+            _LOGGER.error("No username or password provided.")
+            raise InvalidCredentialsError("No username or password provided.")
+
+        # Replace any prior session before opening a new one so we never
+        # leak a ClientSession across login attempts.
+        if self._session is not None:
+            await self._cleanup_session()
 
         self._session = aiohttp.ClientSession()
 
         login_url = f"{HOST_URL}/{LOGIN_ENDPOINT}"
         payload = {
             "email": self._username,
-            "password": self._password
+            "password": self._password,
         }
         try:
             async with self._session.post(
@@ -259,54 +315,116 @@ class Sensorlinx:
                     _LOGGER.error(f"Login failed with status {resp.status}: {body}")
                     raise LoginError(f"Login failed with status {resp.status}: {body}")
                 data = await resp.json()
-                self._bearer_token = data.get("token")
-                self._refresh_token = data.get("refresh")
-                if not self._bearer_token:
+                bearer = data.get("token")
+                if not bearer:
                     _LOGGER.error("No bearer token received during login.")
                     raise NoTokenError("No bearer token received during login.")
+                self._bearer_token = bearer
+                self._refresh_token = data.get("refresh")
                 self.headers["Authorization"] = f"Bearer {self._bearer_token}"
         except asyncio.TimeoutError:
             _LOGGER.error("Login request timed out.")
+            await self._cleanup_session()
             raise LoginTimeoutError("Login request timed out.")
+        except LoginError:
+            await self._cleanup_session()
+            raise
         except Exception as e:
             _LOGGER.exception(f"Exception during login: {e}")
+            await self._cleanup_session()
             raise LoginError(f"Exception during login: {e}")
         
     async def close(self):
-        """Close the aiohttp session if it exists."""
-        if self._session:
-            await self._session.close()
-            self._session = None
-            self._bearer_token = None
-            self._refresh_token = None
-            _LOGGER.debug("Session closed successfully.")
-        else:
-            _LOGGER.debug("No session to close.")
-        
+        """Close the aiohttp session and forget cached credentials.
+
+        Use this for an explicit shutdown (e.g. HA's ``async_unload_entry``).
+        For internal failure cleanup that needs to preserve credentials so
+        the next call can reauthenticate, see :meth:`_cleanup_session`.
+        """
+        async with self._auth_lock:
+            had_session = self._session is not None
+            await self._cleanup_session()
+            self._username = None
+            self._password = None
+            if had_session:
+                _LOGGER.debug("Session closed successfully.")
+            else:
+                _LOGGER.debug("No session to close.")
+
+    async def _authenticated_request(self, method: str, url: str, *, retry_on_401: bool = True, **kwargs):
+        """Issue an authenticated request, transparently reauthenticating on 401.
+
+        Args:
+            method: HTTP method (``GET``, ``PATCH``, ...).
+            url: Fully-qualified request URL.
+            retry_on_401: When True (default) and the server responds 401
+                Unauthorized, clear auth state, log in again with cached
+                credentials, and retry the request once. A second 401
+                raises :class:`InvalidCredentialsError`. Network errors
+                and timeouts are *never* retried because their semantics
+                (especially for writes) are ambiguous.
+            **kwargs: Forwarded to ``aiohttp.ClientSession.request``. The
+                authorization header is injected automatically; callers
+                should not supply ``headers["Authorization"]``.
+
+        Returns:
+            Parsed JSON body when ``Content-Type`` is JSON, otherwise the
+            raw response text.
+
+        Raises:
+            InvalidCredentialsError: After a second consecutive 401.
+            LoginError / LoginTimeoutError / aiohttp errors: Propagated
+                unchanged from the underlying calls.
+        """
+        if not self.is_logged_in:
+            await self.login()
+
+        attempt = 0
+        while True:
+            attempt += 1
+            req_headers = {**self.headers, **(kwargs.pop("headers", {}) if attempt == 1 else {})}
+            req_kwargs = dict(kwargs)
+            req_kwargs.setdefault("timeout", 10)
+            req_kwargs.setdefault("proxy", self.proxy_url)
+            session_method = getattr(self._session, method.lower())
+            async with session_method(url, headers=req_headers, **req_kwargs) as resp:
+                if resp.status == 401 and retry_on_401 and attempt == 1:
+                    body_preview = await resp.text()
+                    _LOGGER.info(
+                        "Got 401 on %s %s; re-authenticating once. Body: %s",
+                        method, url, body_preview[:200],
+                    )
+                    # Force a clean reauth: drop the (likely-expired)
+                    # token but keep the session/creds for the relogin.
+                    self._bearer_token = None
+                    self.headers.pop("Authorization", None)
+                    await self.login()  # uses cached creds; raises if they are now bad
+                    continue
+                if resp.status == 401:
+                    body = await resp.text()
+                    raise InvalidCredentialsError(
+                        f"Authentication rejected after retry on {method} {url}: {body}"
+                    )
+                if resp.status >= 400:
+                    body = await resp.text()
+                    raise RuntimeError(f"{method} {url} failed with status {resp.status}: {body}")
+                content_type = resp.headers.get("Content-Type", "")
+                if "application/json" in content_type:
+                    return await resp.json()
+                return await resp.text()
+
     async def get_profile(self) -> Optional[Dict[str, str]]:
         ''' Fetch the user profile information
         
         Returns: Optional[Dict[str, str]]: Returns a dictionary with user profile information or None if not logged in.
         '''
-        
-        if self._session is None:
-            if not await self.login():
-                return None
-
         profile_url = f"{HOST_URL}/{PROFILE_ENDPOINT}"
         try:
-            async with self._session.get(
-                profile_url,
-                headers=self.headers,
-                proxy=self.proxy_url,
-                timeout=10
-            ) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    _LOGGER.error(f"Failed to fetch profile with status {resp.status}: {body}")
-                    return None
-                data = await resp.json()
-                return data
+            return await self._authenticated_request("GET", profile_url)
+        except LoginError:
+            # Auth failures must reach the caller so HA can route them
+            # to ConfigEntryAuthFailed / UpdateFailed appropriately.
+            raise
         except Exception as e:
             _LOGGER.error(f"Exception fetching profile: {e}")
             return None
@@ -322,28 +440,15 @@ class Sensorlinx:
                 - If building_id is None, returns a list of building dicts or None if not logged in.
                 - If building_id is provided, returns a dict for the building or None if not found.
         '''
-        if self._session is None:
-            if not await self.login():
-                return None
-
         if building_id:
             buildings_url = f"{HOST_URL}/{BUILDINGS_ENDPOINT}/{building_id}"
         else:
             buildings_url = f"{HOST_URL}/{BUILDINGS_ENDPOINT}"
 
         try:
-            async with self._session.get(
-                buildings_url,
-                headers=self.headers,
-                proxy=self.proxy_url,
-                timeout=10
-            ) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    _LOGGER.error(f"Failed to fetch building(s) with status {resp.status}: {body}")
-                    return None
-                data = await resp.json()
-                return data
+            return await self._authenticated_request("GET", buildings_url)
+        except LoginError:
+            raise
         except Exception as e:
             _LOGGER.error(f"Exception fetching building(s): {e}")
             return None
@@ -363,9 +468,6 @@ class Sensorlinx:
         Raises:
             RuntimeError: If the request fails or the device(s) are not found.
         '''
-        if self._session is None:
-            await self.login()
-
         if device_id:
             url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}/{device_id}"
             _LOGGER.debug(f"Fetching URL: {url}")
@@ -373,23 +475,15 @@ class Sensorlinx:
             url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}"
 
         try:
-            async with self._session.get(
-                url,
-                headers=self.headers,
-                proxy=self.proxy_url,
-                timeout=10
-            ) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    _LOGGER.error(f"Failed to fetch device(s) with status {resp.status}: {body}")
-                    raise RuntimeError(f"Failed to fetch device(s) with status {resp.status}: {body}")
-                data = await resp.json()
-                if not data:
-                    raise RuntimeError("No device data found.")
-                return data
+            data = await self._authenticated_request("GET", url)
+        except LoginError:
+            raise
         except Exception as e:
             _LOGGER.error(f"Exception fetching device(s): {e}")
             raise RuntimeError(f"Exception fetching device(s): {e}")
+        if not data:
+            raise RuntimeError("No device data found.")
+        return data
 
     async def set_device_parameter(
         self,
@@ -474,9 +568,6 @@ class Sensorlinx:
         if not building_id or not device_id:
             _LOGGER.error("Both building_id and device_id must be provided.")
             raise InvalidParameterError("Both building_id and device_id must be provided.")
-
-        if self._session is None:
-            await self.login()
 
         url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}/{device_id}"
         payload = {}
@@ -792,18 +883,15 @@ class Sensorlinx:
             raise InvalidParameterError("At least one optional parameter must be provided.")
 
         try:
-            async with self._session.patch(
+            response = await self._authenticated_request(
+                "PATCH",
                 url,
                 json=payload,
-                headers={**self.headers, "Content-Type": "application/json"},
-                proxy=self.proxy_url,
-                timeout=10
-            ) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    _LOGGER.error(f"Failed to set device parameter(s) with status {resp.status}: {body}")
-                    raise RuntimeError(f"Failed to set device parameter(s) with status {resp.status}: {body}")
-                _LOGGER.debug(f"Response from setting device parameter(s): {await resp.json()}")
+                headers={"Content-Type": "application/json"},
+            )
+            _LOGGER.debug(f"Response from setting device parameter(s): {response}")
+        except LoginError:
+            raise
         except Exception as e:
             _LOGGER.error(f"Exception setting device parameter(s): {e}")
             raise RuntimeError(f"Exception setting device parameter(s): {e}")
