@@ -72,7 +72,12 @@ BACKUP_ONLY_TANK_TEMP = "bkTk"
 FIRMWARE_VERSION = "firmVer"
 SYNC_CODE = "syncCode"
 DEVICE_PIN = "production.pin"
-DEVICE_TYPE = "deviceType"  # The type of device (e.g., "ECO-0600")
+DEVICE_TYPE = "deviceType"  # The type of device (e.g., "ECO", "THM", "ZON")
+
+# Known deviceType values returned by the HBX cloud
+DEVICE_TYPE_ECO = "ECO"  # ECO-0600 heat-pump controller
+DEVICE_TYPE_THM = "THM"  # THM-0600 thermostat
+DEVICE_TYPE_ZON = "ZON"  # ZON-0600 zone controller
 HEATPUMP_STAGE_RUNTIMES = "stgRun"
 HEATPUMP_STAGES_STATE = "stages"
 BACKUP_STATE = "backup"
@@ -2751,3 +2756,382 @@ class SensorlinxDevice:
                 'weatherId': period.get('weatherId'),
             })
         return result
+
+
+class ThmDevice(SensorlinxDevice):
+    """
+    Parser for HBX THM-style thermostats (e.g. THM-0600).
+
+    The THM JSON payload has a different shape than an ECO controller:
+    no ``temps`` dict, no tank parameters. Instead it exposes a small
+    set of pre-decoded blocks (``temperature``, ``target``, ``thmMode``,
+    ``changeover``, ``fanModes``, ``awayMode``, ``demands``, ``schedules``)
+    plus raw fields like ``rm`` (room °F), ``flr`` (floor °F), and
+    ``hm`` (humidity %).
+
+    Only read-only accessors are provided; setters will be added once the
+    field-to-action mapping has been validated against a live device.
+    """
+
+    async def get_name(self, device_info: Optional[Dict] = None) -> str:
+        """Return the user-assigned thermostat name (e.g. ``"Garage"``)."""
+        return await self._get_device_info_value("name", device_info)
+
+    async def get_room_temperature(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[Temperature]:
+        """Current room temperature in °F, or ``None`` if not reported."""
+        info = await self._resolve_device_info(device_info)
+        # Prefer the pre-decoded ``temperature`` block when present.
+        block = info.get("temperature")
+        if isinstance(block, dict) and block.get("type") == "room":
+            value = block.get("value")
+            if value is not None:
+                return Temperature(value, "F")
+        raw = info.get("rm")
+        return Temperature(raw, "F") if raw is not None else None
+
+    async def get_floor_temperature(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[Temperature]:
+        """Current floor temperature in °F, or ``None`` if not reported."""
+        info = await self._resolve_device_info(device_info)
+        raw = info.get("flr")
+        return Temperature(raw, "F") if raw is not None else None
+
+    async def get_humidity(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[float]:
+        """Current relative humidity in percent, or ``None`` if not reported."""
+        info = await self._resolve_device_info(device_info)
+        raw = info.get("hm")
+        return float(raw) if raw is not None else None
+
+    async def get_target_temperature(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[Temperature]:
+        """
+        The active setpoint in °F.
+
+        Returns ``None`` when the thermostat reports ``target.isOff`` (i.e.
+        the changeover is in the Off position) so callers can distinguish
+        "no setpoint" from a real temperature.
+        """
+        info = await self._resolve_device_info(device_info)
+        block = info.get("target")
+        if not isinstance(block, dict):
+            return None
+        if block.get("isOff"):
+            return None
+        value = block.get("value")
+        return Temperature(value, "F") if value is not None else None
+
+    async def get_target_type(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[str]:
+        """The kind of setpoint currently shown (``"heat"`` or ``"cool"``)."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("target")
+        if isinstance(block, dict):
+            return block.get("type")
+        return None
+
+    async def is_off(self, device_info: Optional[Dict] = None) -> bool:
+        """Return ``True`` when the thermostat changeover is in the Off position."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("target")
+        if isinstance(block, dict):
+            return bool(block.get("isOff"))
+        return False
+
+    async def is_heating(self, device_info: Optional[Dict] = None) -> bool:
+        """Return ``True`` when a heat demand is currently active."""
+        info = await self._resolve_device_info(device_info)
+        return bool(info.get("isHeating"))
+
+    async def is_cooling(self, device_info: Optional[Dict] = None) -> bool:
+        """Return ``True`` when a cool demand is currently active."""
+        info = await self._resolve_device_info(device_info)
+        return bool(info.get("isCooling"))
+
+    async def get_hvac_mode(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[str]:
+        """
+        Active changeover mode as a lowercase string.
+
+        Reads the ``changeover`` array and returns the ``key`` of the entry
+        flagged ``activated``: typically one of ``"auto"``, ``"heat"``,
+        ``"cool"``, ``"off"``. Returns ``None`` if no entry is activated.
+        """
+        info = await self._resolve_device_info(device_info)
+        for entry in info.get("changeover", []) or []:
+            if isinstance(entry, dict) and entry.get("activated"):
+                return entry.get("key")
+        return None
+
+    async def get_thm_mode(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[str]:
+        """The thermostat mode label (e.g. ``"Air"``, ``"Floor"``)."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("thmMode")
+        if isinstance(block, dict):
+            return block.get("title")
+        return None
+
+    async def get_fan_mode(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[str]:
+        """Active fan mode key (``"off"``/``"on"``/``"intermittent"``)."""
+        info = await self._resolve_device_info(device_info)
+        for entry in info.get("fanModes", []) or []:
+            if isinstance(entry, dict) and entry.get("activated"):
+                return entry.get("key")
+        return None
+
+    async def get_away_mode(
+        self, device_info: Optional[Dict] = None
+    ) -> Dict:
+        """Full ``awayMode`` block (activated flag + heat/cool targets)."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("awayMode")
+        return block if isinstance(block, dict) else {}
+
+    async def get_demands(
+        self, device_info: Optional[Dict] = None
+    ) -> List[Dict]:
+        """
+        Return the THM ``demands`` array as a list of dicts.
+
+        Each entry has ``key``, ``title``, ``enabled``, ``activated``.
+        Overrides the ECO-specific ``get_demands`` to use the THM schema.
+        """
+        info = await self._resolve_device_info(device_info)
+        block = info.get("demands")
+        return list(block) if isinstance(block, list) else []
+
+    async def get_schedules(
+        self, device_info: Optional[Dict] = None
+    ) -> List[Dict]:
+        """Return the ``schedules`` array (weekday/weekend periods)."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("schedules")
+        return list(block) if isinstance(block, list) else []
+
+    async def get_temperatures(
+        self,
+        temp_name: Optional[str] = None,
+        device_info: Optional[Dict] = None,
+    ) -> Union[Dict[str, Dict[str, Optional[Temperature]]], Dict[str, Optional[Temperature]]]:
+        """
+        Override the ECO-shaped reader to expose THM temperature sensors.
+
+        Returns a dict keyed by sensor title with ``actual``/``target``
+        Temperature values, mirroring :meth:`SensorlinxDevice.get_temperatures`
+        so callers expecting the ECO shape get a usable result.
+        """
+        info = await self._resolve_device_info(device_info)
+        actual_room = await self.get_room_temperature(info)
+        target = await self.get_target_temperature(info)
+        floor = await self.get_floor_temperature(info)
+
+        result: Dict[str, Dict[str, Optional[Temperature]]] = {}
+        if actual_room is not None or target is not None:
+            result["Room"] = {"actual": actual_room, "target": target}
+        if floor is not None:
+            result["Floor"] = {"actual": floor, "target": None}
+
+        if temp_name:
+            if temp_name not in result:
+                raise RuntimeError(f"Temperature sensor '{temp_name}' not found.")
+            return result[temp_name]
+        if not result:
+            raise RuntimeError("No matching temperature sensors found.")
+        return result
+
+    async def _resolve_device_info(
+        self, device_info: Optional[Dict] = None
+    ) -> Dict:
+        """Resolve a passed-in device dict or fetch it from the API."""
+        if device_info is not None:
+            return device_info
+        try:
+            fetched = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+        except Exception as e:
+            _LOGGER.error(f"Exception fetching device info: {e}")
+            raise RuntimeError(f"Failed to fetch device info: {e}")
+        if not fetched:
+            raise RuntimeError("Device info not found.")
+        return fetched
+
+
+class ZonDevice(SensorlinxDevice):
+    """
+    Parser for HBX ZON-style zone controllers (e.g. ZON-0600).
+
+    A ZON device aggregates one or more THM thermostats and drives 16
+    zone relays, plus pumps/fancoil/demands. It does not report room or
+    floor temperatures of its own, so :meth:`get_temperatures` is not
+    available; use the linked :class:`ThmDevice` instances instead
+    (see :meth:`get_thermostat_sync_codes`).
+
+    Only read-only accessors are provided; setters will be added once the
+    field-to-action mapping has been validated against a live device.
+    """
+
+    async def get_name(self, device_info: Optional[Dict] = None) -> str:
+        """Return the user-assigned controller name (e.g. ``"AZON-0224"``)."""
+        return await self._get_device_info_value("name", device_info)
+
+    async def get_relays(
+        self, device_info: Optional[Dict] = None
+    ) -> List[bool]:
+        """Return the 16-element relay state array (booleans)."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("relays")
+        return [bool(x) for x in block] if isinstance(block, list) else []
+
+    async def get_relay_types(
+        self, device_info: Optional[Dict] = None
+    ) -> List[int]:
+        """Return the ``relType`` configuration array (integers)."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("relType")
+        return [int(x) for x in block] if isinstance(block, list) else []
+
+    async def get_demands(
+        self, device_info: Optional[Dict] = None
+    ) -> List[Dict]:
+        """ZON demand entries (HD/CD2/APP). Overrides the ECO version."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("demands")
+        return list(block) if isinstance(block, list) else []
+
+    async def get_pumps(
+        self, device_info: Optional[Dict] = None
+    ) -> List[Dict]:
+        """Pump configuration list (each entry has key/title/value/activated)."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("pumps")
+        return list(block) if isinstance(block, list) else []
+
+    async def get_fancoil(
+        self, device_info: Optional[Dict] = None
+    ) -> List[Dict]:
+        """Fancoil capability list (heating/cooling/fan/humidity)."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("fancoil")
+        return list(block) if isinstance(block, list) else []
+
+    async def get_app_button(
+        self, device_info: Optional[Dict] = None
+    ) -> Dict:
+        """Return the ``appButton`` block (enabled/activated/text)."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("appButton")
+        return block if isinstance(block, dict) else {}
+
+    async def get_aux_setpoint(
+        self, device_info: Optional[Dict] = None
+    ) -> Dict:
+        """Return the ``auxSetpoint`` block."""
+        info = await self._resolve_device_info(device_info)
+        block = info.get("auxSetpoint")
+        return block if isinstance(block, dict) else {}
+
+    async def get_thermostat_sync_codes(
+        self, device_info: Optional[Dict] = None
+    ) -> List[str]:
+        """
+        Return the syncCodes of THM devices linked to this zone controller.
+
+        Reads the ``thmInfo`` array and filters out null/empty entries.
+        Useful for wiring HA ``via_device`` so child thermostats show up
+        underneath their parent zone controller.
+        """
+        info = await self._resolve_device_info(device_info)
+        block = info.get("thmInfo")
+        if not isinstance(block, list):
+            return []
+        return [str(x) for x in block if x]
+
+    async def get_zone_id(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[int]:
+        """Return the integer ``znID`` zone identifier."""
+        info = await self._resolve_device_info(device_info)
+        raw = info.get("znID")
+        return int(raw) if raw is not None else None
+
+    async def get_temperatures(
+        self,
+        temp_name: Optional[str] = None,
+        device_info: Optional[Dict] = None,
+    ) -> Dict:
+        """
+        ZON controllers do not carry their own temperature sensors.
+
+        Raises :class:`RuntimeError` so callers fall back to reading
+        temperatures from the linked :class:`ThmDevice` instances.
+        """
+        raise RuntimeError(
+            "ZON devices do not expose temperatures directly; "
+            "use the linked THM devices via get_thermostat_sync_codes()."
+        )
+
+    async def _resolve_device_info(
+        self, device_info: Optional[Dict] = None
+    ) -> Dict:
+        """Resolve a passed-in device dict or fetch it from the API."""
+        if device_info is not None:
+            return device_info
+        try:
+            fetched = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+        except Exception as e:
+            _LOGGER.error(f"Exception fetching device info: {e}")
+            raise RuntimeError(f"Failed to fetch device info: {e}")
+        if not fetched:
+            raise RuntimeError("Device info not found.")
+        return fetched
+
+
+def device_for(
+    sensorlinx: Sensorlinx,
+    building_id: str,
+    device_info: Dict,
+) -> SensorlinxDevice:
+    """
+    Build the appropriate device wrapper for a raw device payload.
+
+    Inspects ``deviceType`` in the payload and returns a :class:`ThmDevice`,
+    :class:`ZonDevice`, or :class:`SensorlinxDevice` (the historical ECO
+    parser). Unknown device types fall back to :class:`SensorlinxDevice`
+    so callers still get firmware/sync_code/name accessors.
+
+    Args:
+        sensorlinx: The authenticated API client.
+        building_id: The parent building id (used for nested API calls).
+        device_info: A device dict as returned by
+            :meth:`Sensorlinx.get_devices` (must contain ``deviceType`` and
+            either ``syncCode`` or ``id``/``_id``).
+
+    Returns:
+        A :class:`SensorlinxDevice` (or subclass) bound to the device id.
+    """
+    if not isinstance(device_info, dict):
+        raise TypeError("device_info must be a dict from get_devices().")
+    device_id = (
+        device_info.get("syncCode")
+        or device_info.get("id")
+        or device_info.get("_id")
+    )
+    if not device_id:
+        raise ValueError("device_info is missing syncCode/id/_id.")
+    dtype = (device_info.get(DEVICE_TYPE) or "").upper()
+    if dtype == DEVICE_TYPE_THM:
+        return ThmDevice(sensorlinx, building_id, device_id)
+    if dtype == DEVICE_TYPE_ZON:
+        return ZonDevice(sensorlinx, building_id, device_id)
+    return SensorlinxDevice(sensorlinx, building_id, device_id)
+

@@ -1,0 +1,101 @@
+{
+  "production": {
+    "productionDate": "2021-11-29T17:05:14.237Z",
+    "pin": "REDACTED"
+  },
+  "alerts": [],
+  "_id": "REDACTED_DEVICE_ID",
+  "building": "REDACTED_BUILDING_ID",
+  "favorite": false,
+  "connectedAt": "2026-04-12T14:00:30.087Z",
+  "relStat": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  "relType": [1, 1, 1, 0],
+  "syncCode": "AZON-0224",
+  "firmVer": 1.32,
+  "deviceType": "ZON",
+  "createdAt": "2021-12-01T18:05:46.562Z",
+  "updatedAt": "2026-04-12T14:00:36.064Z",
+  "name": "AZON-0224",
+  "aButText": "App Button",
+  "autoTm": 1,
+  "auxMode": 0,
+  "bckLit": 1,
+  "cOrF": 44,
+  "dhwT": 68,
+  "dmd1Set": 1,
+  "dmd2Set": 6,
+  "dmd3Set": 4,
+  "dmdCom": 0,
+  "dmpCom": 0,
+  "fourP": 0,
+  "pmp1Set": 2,
+  "pmp2Set": 3,
+  "thmInfo": ["ATHM-4304", "ATHM-2625", "ATHM-2619", null],
+  "wwsd": 150,
+  "znID": 24,
+  "znSeq": 0,
+  "zonInfo": [],
+  "aBut": 0,
+  "auxDif": 8,
+  "auxPrior": 9,
+  "boot": 0,
+  "demOn": 0,
+  "dow": 1,
+  "exTm": 24,
+  "min": 0,
+  "p1PP": 60,
+  "p2PP": 60,
+  "pTest": 0,
+  "sDel1": 0,
+  "sDel2": 0,
+  "sDem1": 0,
+  "sDem2": 0,
+  "sDem3": 0,
+  "therm": -47,
+  "tz": -8,
+  "znPP": 60,
+  "znPrior": 9,
+  "changeSource": "server",
+  "fieldFirmwareCheck": false,
+  "alertConfig": [],
+  "U1STA": 1296,
+  "sequence": {
+    "value": 0,
+    "name": "Primary",
+    "range": "1-4"
+  },
+  "zones": null,
+  "auxSetpoint": {
+    "temperature": null,
+    "target": 68,
+    "mode": {
+      "title": "Auxiliary Setpoint",
+      "value": 0
+    },
+    "hasTarget": true
+  },
+  "fancoil": [
+    {"enabled": true, "activated": false, "title": "Heating", "key": "heating"},
+    {"enabled": true, "activated": false, "title": "Cooling", "key": "cooling"},
+    {"enabled": true, "activated": false, "title": "Fan", "key": "fan"},
+    {"enabled": true, "activated": false, "title": "Humidity", "key": "humidity"}
+  ],
+  "pumps": [
+    {"enabled": true, "activated": false, "title": "Cooling", "value": 2, "key": "pump1"},
+    {"enabled": true, "activated": false, "title": "Aux", "value": 3, "key": "pump2"}
+  ],
+  "demands": [
+    {"enabled": true, "activated": false, "type": "hd", "abbr": "HD", "title": "Low Temp", "key": "demand1"},
+    {"enabled": true, "activated": false, "type": "cd2", "abbr": "CD2", "title": "Cool Stage 2", "key": "demand2"},
+    {"enabled": true, "activated": false, "type": "app", "abbr": "APP", "title": "App Button", "key": "demand3"}
+  ],
+  "appButton": {
+    "enabled": true,
+    "activated": false,
+    "text": "App Button"
+  },
+  "space": null,
+  "connected": true,
+  "relays": [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+  "id": "REDACTED_DEVICE_ID"
+}
