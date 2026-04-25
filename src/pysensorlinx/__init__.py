@@ -1,4 +1,36 @@
-from .sensorlinx import Sensorlinx, Temperature, TemperatureDelta, SensorlinxDevice, InvalidCredentialsError, LoginTimeoutError, LoginError, NoTokenError, InvalidParameterError
+from .sensorlinx import (
+    Sensorlinx,
+    Temperature,
+    TemperatureDelta,
+    SensorlinxDevice,
+    ThmDevice,
+    ZonDevice,
+    device_for,
+    DEVICE_TYPE_ECO,
+    DEVICE_TYPE_THM,
+    DEVICE_TYPE_ZON,
+    InvalidCredentialsError,
+    LoginTimeoutError,
+    LoginError,
+    NoTokenError,
+    InvalidParameterError,
+)
 
-__all__ = ["Sensorlinx", "Temperature", "TemperatureDelta", "SensorlinxDevice", "InvalidCredentialsError", "LoginTimeoutError", "LoginError", "NoTokenError", "InvalidParameterError"]
-__version__ = "0.2.3"
+__all__ = [
+    "Sensorlinx",
+    "Temperature",
+    "TemperatureDelta",
+    "SensorlinxDevice",
+    "ThmDevice",
+    "ZonDevice",
+    "device_for",
+    "DEVICE_TYPE_ECO",
+    "DEVICE_TYPE_THM",
+    "DEVICE_TYPE_ZON",
+    "InvalidCredentialsError",
+    "LoginTimeoutError",
+    "LoginError",
+    "NoTokenError",
+    "InvalidParameterError",
+]
+__version__ = "0.3.0"
