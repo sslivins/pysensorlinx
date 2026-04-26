@@ -157,8 +157,13 @@ async def test_thm_set_fan_mode_invalid(thm_with_patch, bad):
 
 
 # ---------------------------------------------------------------------------
-# THM: set_target_temperature ({"target": {"value": int_F}})
+# THM: set_target_temperature — writes rmT (heat) or rmCT (cool) based on
+# the current changeover state. Confirmed against live THM dumps 2026-04-26.
 # ---------------------------------------------------------------------------
+
+def _device_info(target_type, is_off=False):
+    return {"target": {"type": target_type, "isOff": is_off}}
+
 
 @pytest.mark.set_params
 @pytest.mark.parametrize("temp_f,expected_value", [
@@ -169,25 +174,65 @@ async def test_thm_set_fan_mode_invalid(thm_with_patch, bad):
     (68.4, 68),  # rounds down
     (68.6, 69),  # rounds up
 ])
-async def test_thm_set_target_temperature(thm_with_patch, temp_f, expected_value):
+async def test_thm_set_target_temperature_heat_mode(thm_with_patch, temp_f, expected_value):
     sensorlinx, device, mock_patch = thm_with_patch
+    sensorlinx.get_devices = AsyncMock(return_value=_device_info("heat"))
 
     await device.set_target_temperature(Temperature(temp_f, "F"))
 
     assert mock_patch.call_count == 1
     _, kwargs = mock_patch.call_args
-    assert kwargs["json"] == {"target": {"value": expected_value}}
+    assert kwargs["json"] == {"rmT": expected_value}
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("temp_f,expected_value", [
+    (35, 35),
+    (79, 79),
+    (84, 84),
+    (99, 99),
+])
+async def test_thm_set_target_temperature_cool_mode(thm_with_patch, temp_f, expected_value):
+    sensorlinx, device, mock_patch = thm_with_patch
+    sensorlinx.get_devices = AsyncMock(return_value=_device_info("cooling"))
+
+    await device.set_target_temperature(Temperature(temp_f, "F"))
+
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    assert kwargs["json"] == {"rmCT": expected_value}
 
 
 @pytest.mark.set_params
 async def test_thm_set_target_temperature_celsius_input(thm_with_patch):
     """Celsius inputs should be converted to °F before being sent."""
     sensorlinx, device, mock_patch = thm_with_patch
+    sensorlinx.get_devices = AsyncMock(return_value=_device_info("heat"))
 
     await device.set_target_temperature(Temperature(20, "C"))  # 68°F
 
     _, kwargs = mock_patch.call_args
-    assert kwargs["json"] == {"target": {"value": 68}}
+    assert kwargs["json"] == {"rmT": 68}
+
+
+@pytest.mark.set_params
+async def test_thm_set_target_temperature_off_mode_rejected(thm_with_patch):
+    sensorlinx, device, mock_patch = thm_with_patch
+    sensorlinx.get_devices = AsyncMock(return_value=_device_info("heat", is_off=True))
+
+    with pytest.raises(InvalidParameterError):
+        await device.set_target_temperature(Temperature(70, "F"))
+    assert mock_patch.call_count == 0
+
+
+@pytest.mark.set_params
+async def test_thm_set_target_temperature_unknown_target_type_rejected(thm_with_patch):
+    sensorlinx, device, mock_patch = thm_with_patch
+    sensorlinx.get_devices = AsyncMock(return_value={"target": {}})
+
+    with pytest.raises(InvalidParameterError):
+        await device.set_target_temperature(Temperature(70, "F"))
+    assert mock_patch.call_count == 0
 
 
 @pytest.mark.set_params

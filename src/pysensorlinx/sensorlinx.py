@@ -109,7 +109,8 @@ PUMP_MODES = {
 THM_CHANGEOVER = "cngOvr"      # 0=Auto, 1=Heat, 2=Cool, 3=Off
 THM_AWAY = "away"              # 0=off, 1=on
 THM_FAN_MODE = "fnMode"        # 0=Off, 1=On, 2=Intermittent
-THM_TARGET = "target"          # nested object {"value": int_F} for setpoint
+THM_HEAT_SETPOINT = "rmT"      # int °F — heat-mode room setpoint
+THM_COOL_SETPOINT = "rmCT"     # int °F — cool-mode room setpoint
 ZON_APP_BUTTON = "aBut"        # 0=off, 1=on
 ZON_DHW_TARGET = "dhwT"        # int °F (auxiliary heat / DHW setpoint)
 # ZON aux setpoint reuses the same `dhwT` key as ECO DHW target (see DHW_TARGET_TEMP).
@@ -3118,26 +3119,25 @@ class ThmDevice(SensorlinxDevice):
         """
         Set the THM target setpoint for the active changeover (heat or cool).
 
-        The HBX backend determines which underlying field is updated based on
-        the current changeover state: when the THM is in Heat mode this
-        becomes the heat setpoint; in Cool mode it becomes the cool setpoint.
-        Calling this while the THM is in Off mode is rejected by the cloud.
+        Inspects the device's current ``target.type`` and writes either the
+        ``rmT`` (heat) or ``rmCT`` (cool) field accordingly. The HBX cloud
+        rejects setpoint writes when the THM is in Off mode.
 
         Args:
             value: A :class:`Temperature` in the 35°F–99°F range.
 
         Raises:
             InvalidParameterError: If ``value`` is not a Temperature or is
-                outside the safe range.
+                outside the safe range, or if the THM is currently Off.
             LoginError: If authentication fails.
             RuntimeError: If the API call fails for other reasons.
 
         Note:
-            The payload shape (``{"target": {"value": int_F}}``) is inferred
-            from read-side dumps; if HBX rejects this with a 4xx the
-            implementation should be revisited. See
-            ``files/multi-replica-validation-loop.md`` for the field-mapping
-            history.
+            Field mapping (``rmT`` / ``rmCT``) was confirmed via paired
+            before/after device dumps from a live THM-0600 (firmware 1.22)
+            on 2026-04-26: changing the heat setpoint moved ``rmT``;
+            changing the cool setpoint moved ``rmCT``. The previously-used
+            ``target.value`` was a derived read-only block.
         """
         if not isinstance(value, Temperature):
             _LOGGER.error(
@@ -3156,10 +3156,23 @@ class ThmDevice(SensorlinxDevice):
             raise InvalidParameterError(
                 "THM target temperature must be between 35°F and 99°F."
             )
+        info = await self._resolve_device_info(None)
+        target = info.get("target") or {}
+        target_type = target.get("type")
+        if target.get("isOff") or target_type not in ("heat", "cooling"):
+            _LOGGER.error(
+                "Cannot set THM target temperature while changeover is Off "
+                "(target.type=%r, target.isOff=%r).",
+                target_type, target.get("isOff"),
+            )
+            raise InvalidParameterError(
+                "Cannot set THM target temperature while changeover is Off."
+            )
+        field = THM_HEAT_SETPOINT if target_type == "heat" else THM_COOL_SETPOINT
         await self.sensorlinx.patch_device(
             self.building_id,
             self.device_id,
-            **{THM_TARGET: {"value": int(round(temp_f))}},
+            **{field: int(round(temp_f))},
         )
 
     async def _resolve_device_info(
