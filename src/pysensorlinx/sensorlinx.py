@@ -103,6 +103,30 @@ PUMP_MODES = {
     5: "none",
 }
 
+# THM/ZON device-specific raw field names (HBX cloud short keys).
+# Confirmed via paired before/after device dumps from a live install
+# (THM-0600 firmware 1.22, ZON-0600 firmware 1.32) on 2026-04-26.
+THM_CHANGEOVER = "cngOvr"      # 0=Auto, 1=Heat, 2=Cool, 3=Off
+THM_AWAY = "away"              # 0=off, 1=on
+THM_FAN_MODE = "fnMode"        # 0=Off, 1=On, 2=Intermittent
+THM_TARGET = "target"          # nested object {"value": int_F} for setpoint
+ZON_APP_BUTTON = "aBut"        # 0=off, 1=on
+ZON_DHW_TARGET = "dhwT"        # int °F (auxiliary heat / DHW setpoint)
+# ZON aux setpoint reuses the same `dhwT` key as ECO DHW target (see DHW_TARGET_TEMP).
+
+THM_CHANGEOVER_VALUES = {
+    "auto": 0,
+    "heat": 1,
+    "cool": 2,
+    "off": 3,
+}
+
+THM_FAN_MODE_VALUES = {
+    "off": 0,
+    "on": 1,
+    "intermittent": 2,
+}
+
 CONF_SITE_NAME = "site_name"       # The name of the site (e.g., "home")
 CONF_SENSOR_IDS = "sensor_ids"     # List of sensor IDs to extract (empty = all)
 CONF_USERNAME = "username"         # Login username
@@ -900,6 +924,58 @@ class Sensorlinx:
         except Exception as e:
             _LOGGER.error(f"Exception setting device parameter(s): {e}")
             raise RuntimeError(f"Exception setting device parameter(s): {e}")
+
+    async def patch_device(
+        self,
+        building_id: str,
+        device_id: str,
+        **fields,
+    ) -> None:
+        """
+        Send a low-level PATCH to the device-parameter endpoint with arbitrary
+        raw HBX field names.
+
+        Used for THM/ZON device-specific fields that aren't covered by the
+        typed signature of :py:meth:`set_device_parameter`. Reuses the same
+        URL and authentication path (including 401 retry).
+
+        Args:
+            building_id (str): The ID of the building (required).
+            device_id (str): The ID of the device (required).
+            **fields: Raw HBX field name -> value pairs. Example:
+                ``patch_device(b, d, cngOvr=1)`` to set THM changeover to Heat.
+
+        Raises:
+            InvalidParameterError: If ``building_id``/``device_id`` are missing
+                or no fields were supplied.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        if not building_id or not device_id:
+            _LOGGER.error("Both building_id and device_id must be provided.")
+            raise InvalidParameterError(
+                "Both building_id and device_id must be provided."
+            )
+        if not fields:
+            _LOGGER.error("At least one field must be provided to patch_device.")
+            raise InvalidParameterError(
+                "At least one field must be provided to patch_device."
+            )
+
+        url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}/{device_id}"
+        try:
+            response = await self._authenticated_request(
+                "PATCH",
+                url,
+                json=dict(fields),
+                headers={"Content-Type": "application/json"},
+            )
+            _LOGGER.debug(f"Response from patch_device: {response}")
+        except LoginError:
+            raise
+        except Exception as e:
+            _LOGGER.error(f"Exception in patch_device: {e}")
+            raise RuntimeError(f"Exception in patch_device: {e}")
 
            
 class SensorlinxDevice:
@@ -2769,8 +2845,10 @@ class ThmDevice(SensorlinxDevice):
     plus raw fields like ``rm`` (room °F), ``flr`` (floor °F), and
     ``hm`` (humidity %).
 
-    Only read-only accessors are provided; setters will be added once the
-    field-to-action mapping has been validated against a live device.
+    Most accessors are read-only; a small set of setters
+    (:meth:`set_hvac_mode`, :meth:`set_target_temperature`,
+    :meth:`set_away_mode`, :meth:`set_fan_mode`) cover the surfaces validated
+    against a live install.
     """
 
     async def get_name(self, device_info: Optional[Dict] = None) -> str:
@@ -2950,6 +3028,140 @@ class ThmDevice(SensorlinxDevice):
             raise RuntimeError("No matching temperature sensors found.")
         return result
 
+    # ------------------------------------------------------------------
+    # Setters
+    #
+    # Field names confirmed via paired before/after device dumps from a live
+    # THM-0600 (firmware 1.22) on 2026-04-26. ``set_target_temperature`` is
+    # the only setter whose payload shape is inferred (the change surfaced
+    # only in the derived ``target.value`` block in read-side data); all
+    # others write the raw integer field that demonstrably changed in the
+    # diffs.
+    # ------------------------------------------------------------------
+
+    async def set_hvac_mode(self, mode: str) -> None:
+        """
+        Set the THM changeover (HVAC mode).
+
+        Args:
+            mode: One of ``"auto"``, ``"heat"``, ``"cool"``, ``"off"``.
+
+        Raises:
+            InvalidParameterError: If ``mode`` is not recognised.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        key = mode.lower() if isinstance(mode, str) else None
+        if key not in THM_CHANGEOVER_VALUES:
+            _LOGGER.error(
+                "Invalid THM HVAC mode %r. Must be one of %s.",
+                mode, list(THM_CHANGEOVER_VALUES),
+            )
+            raise InvalidParameterError(
+                "Invalid THM HVAC mode. Must be 'auto', 'heat', 'cool' or 'off'."
+            )
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{THM_CHANGEOVER: THM_CHANGEOVER_VALUES[key]},
+        )
+
+    async def set_away_mode(self, enabled: bool) -> None:
+        """
+        Enable or disable the THM Away preset.
+
+        Args:
+            enabled: ``True`` to turn Away mode on; ``False`` to turn it off.
+
+        Raises:
+            InvalidParameterError: If ``enabled`` is not a bool.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        if not isinstance(enabled, bool):
+            _LOGGER.error("THM away mode must be a boolean (got %r).", type(enabled))
+            raise InvalidParameterError("THM away mode must be a boolean.")
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{THM_AWAY: 1 if enabled else 0},
+        )
+
+    async def set_fan_mode(self, mode: str) -> None:
+        """
+        Set the THM fan mode.
+
+        Args:
+            mode: One of ``"off"``, ``"on"``, ``"intermittent"``.
+
+        Raises:
+            InvalidParameterError: If ``mode`` is not recognised.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        key = mode.lower() if isinstance(mode, str) else None
+        if key not in THM_FAN_MODE_VALUES:
+            _LOGGER.error(
+                "Invalid THM fan mode %r. Must be one of %s.",
+                mode, list(THM_FAN_MODE_VALUES),
+            )
+            raise InvalidParameterError(
+                "Invalid THM fan mode. Must be 'off', 'on' or 'intermittent'."
+            )
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{THM_FAN_MODE: THM_FAN_MODE_VALUES[key]},
+        )
+
+    async def set_target_temperature(self, value: Temperature) -> None:
+        """
+        Set the THM target setpoint for the active changeover (heat or cool).
+
+        The HBX backend determines which underlying field is updated based on
+        the current changeover state: when the THM is in Heat mode this
+        becomes the heat setpoint; in Cool mode it becomes the cool setpoint.
+        Calling this while the THM is in Off mode is rejected by the cloud.
+
+        Args:
+            value: A :class:`Temperature` in the 35°F–99°F range.
+
+        Raises:
+            InvalidParameterError: If ``value`` is not a Temperature or is
+                outside the safe range.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+
+        Note:
+            The payload shape (``{"target": {"value": int_F}}``) is inferred
+            from read-side dumps; if HBX rejects this with a 4xx the
+            implementation should be revisited. See
+            ``files/multi-replica-validation-loop.md`` for the field-mapping
+            history.
+        """
+        if not isinstance(value, Temperature):
+            _LOGGER.error(
+                "THM target temperature must be a Temperature instance (got %r).",
+                type(value),
+            )
+            raise InvalidParameterError(
+                "THM target temperature must be a Temperature instance."
+            )
+        temp_f = value.to_fahrenheit()
+        if not (35 <= temp_f <= 99):
+            _LOGGER.error(
+                "THM target temperature must be between 35°F and 99°F (got %s°F).",
+                temp_f,
+            )
+            raise InvalidParameterError(
+                "THM target temperature must be between 35°F and 99°F."
+            )
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{THM_TARGET: {"value": int(round(temp_f))}},
+        )
+
     async def _resolve_device_info(
         self, device_info: Optional[Dict] = None
     ) -> Dict:
@@ -2976,8 +3188,9 @@ class ZonDevice(SensorlinxDevice):
     available; use the linked :class:`ThmDevice` instances instead
     (see :meth:`get_thermostat_sync_codes`).
 
-    Only read-only accessors are provided; setters will be added once the
-    field-to-action mapping has been validated against a live device.
+    Most accessors are read-only; setters :meth:`set_app_button` and
+    :meth:`set_aux_setpoint` cover the surfaces validated against a live
+    install.
     """
 
     async def get_name(self, device_info: Optional[Dict] = None) -> str:
@@ -3078,6 +3291,75 @@ class ZonDevice(SensorlinxDevice):
         raise RuntimeError(
             "ZON devices do not expose temperatures directly; "
             "use the linked THM devices via get_thermostat_sync_codes()."
+        )
+
+    # ------------------------------------------------------------------
+    # Setters
+    #
+    # Field names confirmed via paired before/after device dumps from a live
+    # ZON-0600 (firmware 1.32) on 2026-04-26. Toggling ``aBut`` was observed
+    # to flip the 12th element of the relay state arrays as a hardware
+    # side-effect — that's a server-derived consequence and is not written.
+    # ``dhwT`` is the same field used by :class:`SensorlinxDevice` (ECO) for
+    # the DHW target setpoint.
+    # ------------------------------------------------------------------
+
+    async def set_app_button(self, enabled: bool) -> None:
+        """
+        Toggle the ZON "app button" (which drives relay 12).
+
+        Args:
+            enabled: ``True`` to activate the app button (and relay 12);
+                ``False`` to deactivate.
+
+        Raises:
+            InvalidParameterError: If ``enabled`` is not a bool.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        if not isinstance(enabled, bool):
+            _LOGGER.error("ZON app button must be a boolean (got %r).", type(enabled))
+            raise InvalidParameterError("ZON app button must be a boolean.")
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{ZON_APP_BUTTON: 1 if enabled else 0},
+        )
+
+    async def set_aux_setpoint(self, value: Temperature) -> None:
+        """
+        Set the ZON auxiliary heat setpoint.
+
+        Args:
+            value: A :class:`Temperature` in the 33°F–180°F range.
+
+        Raises:
+            InvalidParameterError: If ``value`` is not a Temperature or is
+                outside the safe range.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        if not isinstance(value, Temperature):
+            _LOGGER.error(
+                "ZON aux setpoint must be a Temperature instance (got %r).",
+                type(value),
+            )
+            raise InvalidParameterError(
+                "ZON aux setpoint must be a Temperature instance."
+            )
+        temp_f = value.to_fahrenheit()
+        if not (33 <= temp_f <= 180):
+            _LOGGER.error(
+                "ZON aux setpoint must be between 33°F and 180°F (got %s°F).",
+                temp_f,
+            )
+            raise InvalidParameterError(
+                "ZON aux setpoint must be between 33°F and 180°F."
+            )
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{ZON_DHW_TARGET: int(round(temp_f))},
         )
 
     async def _resolve_device_info(
