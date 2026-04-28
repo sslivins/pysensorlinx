@@ -111,6 +111,9 @@ THM_AWAY = "away"              # 0=off, 1=on
 THM_FAN_MODE = "fnMode"        # 0=Off, 1=On, 2=Intermittent
 THM_HEAT_SETPOINT = "rmT"      # int °F — heat-mode room setpoint
 THM_COOL_SETPOINT = "rmCT"     # int °F — cool-mode room setpoint
+THM_SCHEDULE_ENABLE = "pgmble" # 0=schedule disabled, 1=schedule enabled
+THM_HUMIDITY_MODE = "useHum"   # 0=off, 1=on, 2=auto
+THM_HUMIDITY_TARGET = "hmT"    # int % relative humidity (0-100)
 ZON_APP_BUTTON = "aBut"        # 0=off, 1=on
 ZON_DHW_TARGET = "dhwT"        # int °F (auxiliary heat / DHW setpoint)
 # ZON aux setpoint reuses the same `dhwT` key as ECO DHW target (see DHW_TARGET_TEMP).
@@ -126,6 +129,12 @@ THM_FAN_MODE_VALUES = {
     "off": 0,
     "on": 1,
     "intermittent": 2,
+}
+
+THM_HUMIDITY_MODE_VALUES = {
+    "off": 0,
+    "on": 1,
+    "auto": 2,
 }
 
 CONF_SITE_NAME = "site_name"       # The name of the site (e.g., "home")
@@ -3173,6 +3182,110 @@ class ThmDevice(SensorlinxDevice):
             self.building_id,
             self.device_id,
             **{field: int(round(temp_f))},
+        )
+
+    async def set_schedule_enabled(self, enabled: bool) -> None:
+        """
+        Enable or disable the THM's on-device program/schedule.
+
+        Writes the ``pgmble`` field. When the schedule is disabled, the THM
+        ignores its weekday/weekend program and holds the manual setpoint;
+        when enabled, the program drives the active setpoint.
+
+        Args:
+            enabled: ``True`` to enable the schedule; ``False`` to disable it.
+
+        Raises:
+            InvalidParameterError: If ``enabled`` is not a bool.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+
+        Note:
+            Field name confirmed via paired before/after device dumps
+            from a live THM-0600 on 2026-04-28: toggling the schedule
+            moved ``pgmble`` between 0 and 1.
+        """
+        if not isinstance(enabled, bool):
+            _LOGGER.error(
+                "THM schedule enabled must be a boolean (got %r).", type(enabled)
+            )
+            raise InvalidParameterError("THM schedule enabled must be a boolean.")
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{THM_SCHEDULE_ENABLE: 1 if enabled else 0},
+        )
+
+    async def set_humidity_mode(self, mode: str) -> None:
+        """
+        Set the THM humidity control mode.
+
+        Writes the ``useHum`` field. ``"off"`` disables humidity control,
+        ``"on"`` runs continuously toward :attr:`humidity target <set_humidity_target>`,
+        and ``"auto"`` lets the THM choose based on outdoor conditions.
+
+        Args:
+            mode: One of ``"off"``, ``"on"``, ``"auto"``.
+
+        Raises:
+            InvalidParameterError: If ``mode`` is not recognised.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+
+        Note:
+            Field mapping confirmed via paired before/after dumps from
+            a live THM-0600 on 2026-04-28: off→on moved ``useHum`` 0→1,
+            on→auto moved it 1→2.
+        """
+        key = mode.lower() if isinstance(mode, str) else None
+        if key not in THM_HUMIDITY_MODE_VALUES:
+            _LOGGER.error(
+                "Invalid THM humidity mode %r. Must be one of %s.",
+                mode, list(THM_HUMIDITY_MODE_VALUES),
+            )
+            raise InvalidParameterError(
+                "Invalid THM humidity mode. Must be 'off', 'on' or 'auto'."
+            )
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{THM_HUMIDITY_MODE: THM_HUMIDITY_MODE_VALUES[key]},
+        )
+
+    async def set_humidity_target(self, value: int) -> None:
+        """
+        Set the THM humidity target (relative humidity, percent).
+
+        Writes the ``hmT`` field as an integer percent in the 0-100 range.
+
+        Args:
+            value: Target relative humidity, 0-100 (integer).
+
+        Raises:
+            InvalidParameterError: If ``value`` is not an int or is out of range.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+
+        Note:
+            Field mapping confirmed via paired before/after dumps from a
+            live THM-0600 on 2026-04-28: changing the humidity target
+            from 40% to 45% moved ``hmT`` 40→45.
+        """
+        # Reject bool because bool is a subclass of int in Python.
+        if isinstance(value, bool) or not isinstance(value, int):
+            _LOGGER.error("THM humidity target must be an int (got %r).", type(value))
+            raise InvalidParameterError("THM humidity target must be an int.")
+        if not (0 <= value <= 100):
+            _LOGGER.error(
+                "THM humidity target must be between 0 and 100 (got %s).", value
+            )
+            raise InvalidParameterError(
+                "THM humidity target must be between 0 and 100."
+            )
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{THM_HUMIDITY_TARGET: value},
         )
 
     async def _resolve_device_info(
