@@ -256,6 +256,112 @@ async def test_thm_set_target_temperature_wrong_type(thm_with_patch, bad):
 
 
 # ---------------------------------------------------------------------------
+# THM: set_schedule_enabled (pgmble 0/1)
+# Field mapping confirmed via paired before/after dumps from a live
+# THM-0600 on 2026-04-28: schedule off->on moved pgmble 0->1.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("enabled,expected", [
+    (True, {"pgmble": 1}),
+    (False, {"pgmble": 0}),
+])
+async def test_thm_set_schedule_enabled(thm_with_patch, enabled, expected):
+    sensorlinx, device, mock_patch = thm_with_patch
+
+    await device.set_schedule_enabled(enabled)
+
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    assert kwargs["json"] == expected
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("bad", [1, 0, "true", None])
+async def test_thm_set_schedule_enabled_invalid(thm_with_patch, bad):
+    _, device, mock_patch = thm_with_patch
+
+    with pytest.raises(InvalidParameterError):
+        await device.set_schedule_enabled(bad)
+    assert mock_patch.call_count == 0
+
+
+# ---------------------------------------------------------------------------
+# THM: set_humidity_mode (useHum 0=off 1=on 2=auto)
+# Field mapping confirmed via paired before/after dumps on 2026-04-28.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("mode,expected", [
+    ("off", {"useHum": 0}),
+    ("on", {"useHum": 1}),
+    ("auto", {"useHum": 2}),
+    ("Auto", {"useHum": 2}),  # case-insensitive
+])
+async def test_thm_set_humidity_mode(thm_with_patch, mode, expected):
+    sensorlinx, device, mock_patch = thm_with_patch
+
+    await device.set_humidity_mode(mode)
+
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    assert kwargs["json"] == expected
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("bad", ["enabled", "", None, 1, "off "])
+async def test_thm_set_humidity_mode_invalid(thm_with_patch, bad):
+    _, device, mock_patch = thm_with_patch
+
+    with pytest.raises(InvalidParameterError):
+        await device.set_humidity_mode(bad)
+    assert mock_patch.call_count == 0
+
+
+# ---------------------------------------------------------------------------
+# THM: set_humidity_target (hmT integer percent, 0-100)
+# Field mapping confirmed via paired before/after dumps on 2026-04-28
+# (40% -> 45% moved hmT 40 -> 45).
+# ---------------------------------------------------------------------------
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("value,expected", [
+    (0, {"hmT": 0}),
+    (40, {"hmT": 40}),
+    (45, {"hmT": 45}),
+    (100, {"hmT": 100}),
+])
+async def test_thm_set_humidity_target(thm_with_patch, value, expected):
+    sensorlinx, device, mock_patch = thm_with_patch
+
+    await device.set_humidity_target(value)
+
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    assert kwargs["json"] == expected
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("bad", [-1, 101, 200])
+async def test_thm_set_humidity_target_out_of_range(thm_with_patch, bad):
+    _, device, mock_patch = thm_with_patch
+
+    with pytest.raises(InvalidParameterError):
+        await device.set_humidity_target(bad)
+    assert mock_patch.call_count == 0
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("bad", [40.5, "40", None, True, False])
+async def test_thm_set_humidity_target_wrong_type(thm_with_patch, bad):
+    _, device, mock_patch = thm_with_patch
+
+    with pytest.raises(InvalidParameterError):
+        await device.set_humidity_target(bad)
+    assert mock_patch.call_count == 0
+
+
+# ---------------------------------------------------------------------------
 # ZON: set_app_button (aBut 0/1)
 # ---------------------------------------------------------------------------
 
