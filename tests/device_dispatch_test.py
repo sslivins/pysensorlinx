@@ -360,6 +360,50 @@ async def test_zon_zone_id(sensorlinx, zon_info):
 
 
 @pytest.mark.asyncio
+async def test_zon_get_sequence_primary(sensorlinx, zon_info):
+    """Fixture device is Primary (sequence.value=0), no zone offset."""
+    dev = ZonDevice(sensorlinx, "bld-1", "X")
+    assert await dev.get_sequence(zon_info) == 0
+
+
+@pytest.mark.asyncio
+async def test_zon_get_sequence_secondary_5_8(sensorlinx, zon_info):
+    """Validates sequence=1 (range 5-8) — matches eelton hbxtesting3 dump #1."""
+    dev = ZonDevice(sensorlinx, "bld-1", "X")
+    info = dict(zon_info)
+    info["sequence"] = {"value": 1, "name": "Secondary", "range": "5-8"}
+    info["znSeq"] = 1
+    assert await dev.get_sequence(info) == 1
+
+
+@pytest.mark.asyncio
+async def test_zon_get_sequence_secondary_9_12(sensorlinx, zon_info):
+    """Validates sequence=2 (range 9-12) — matches eelton hbxtesting3 dump #2."""
+    dev = ZonDevice(sensorlinx, "bld-1", "X")
+    info = dict(zon_info)
+    info["sequence"] = {"value": 2, "name": "Secondary", "range": "9-12"}
+    info["znSeq"] = 2
+    assert await dev.get_sequence(info) == 2
+
+
+@pytest.mark.asyncio
+async def test_zon_get_sequence_falls_back_to_znseq(sensorlinx, zon_info):
+    """When sequence block is missing, fall back to top-level znSeq."""
+    dev = ZonDevice(sensorlinx, "bld-1", "X")
+    info = dict(zon_info)
+    info.pop("sequence", None)
+    info["znSeq"] = 3
+    assert await dev.get_sequence(info) == 3
+
+
+@pytest.mark.asyncio
+async def test_zon_get_sequence_defaults_to_zero(sensorlinx):
+    """When both sequence and znSeq are absent, default to Primary (0)."""
+    dev = ZonDevice(sensorlinx, "bld-1", "X")
+    assert await dev.get_sequence({}) == 0
+
+
+@pytest.mark.asyncio
 async def test_zon_name(sensorlinx, zon_info):
     dev = ZonDevice(sensorlinx, "bld-1", "X")
     assert await dev.get_name(zon_info) == "AZON-0224"

@@ -3403,6 +3403,36 @@ class ZonDevice(SensorlinxDevice):
         raw = info.get("znID")
         return int(raw) if raw is not None else None
 
+    async def get_sequence(
+        self, device_info: Optional[Dict] = None
+    ) -> int:
+        """
+        Return the zone-block sequence offset for this controller.
+
+        The HBX system supports stacking up to five ZON controllers per
+        installation: one Primary (zones 1-4) plus up to four Secondary
+        units (zones 5-8, 9-12, 13-16, 17-20). Each device's place in
+        that stack is reported as an integer 0-4 in the ``sequence``
+        block (or, equivalently, as ``znSeq`` at the top level).
+
+        Multiplied by four and added to the relay slot index, this value
+        produces the absolute "zone number" the HBX mobile app shows to
+        the end user. For a Secondary unit at sequence 1 with relays at
+        idx 0/1/2 active, the app calls those Zone 5/6/7.
+
+        Returns 0 (Primary) when the field is absent or unparseable.
+        """
+        info = await self._resolve_device_info(device_info)
+        block = info.get("sequence")
+        if isinstance(block, dict):
+            raw = block.get("value")
+            if isinstance(raw, (int, float)):
+                return int(raw)
+        raw = info.get("znSeq")
+        if isinstance(raw, (int, float)):
+            return int(raw)
+        return 0
+
     async def get_temperatures(
         self,
         temp_name: Optional[str] = None,
