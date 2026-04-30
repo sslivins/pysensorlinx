@@ -468,3 +468,163 @@ async def test_patch_device_requires_fields():
     with pytest.raises(InvalidParameterError):
         await sensorlinx.patch_device("b1", "d1")
     assert mock_patch.call_count == 0
+
+# ---------------------------------------------------------------------------
+# THM 0.5.2: dual heat/cool setpoints + active demand bitfield
+# ---------------------------------------------------------------------------
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("temp_f,expected", [
+    (35, 35),
+    (68, 68),
+    (99, 99),
+    (68.4, 68),
+    (68.6, 69),
+])
+async def test_thm_set_heat_setpoint(thm_with_patch, temp_f, expected):
+    _, device, mock_patch = thm_with_patch
+    await device.set_heat_setpoint(Temperature(temp_f, "F"))
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    assert kwargs["json"] == {"rmT": expected}
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("temp_f,expected", [
+    (35, 35),
+    (79, 79),
+    (99, 99),
+])
+async def test_thm_set_cool_setpoint(thm_with_patch, temp_f, expected):
+    _, device, mock_patch = thm_with_patch
+    await device.set_cool_setpoint(Temperature(temp_f, "F"))
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    assert kwargs["json"] == {"rmCT": expected}
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("bad_temp", [34, 100, 0, 200])
+async def test_thm_set_heat_setpoint_out_of_range(thm_with_patch, bad_temp):
+    _, device, mock_patch = thm_with_patch
+    with pytest.raises(InvalidParameterError):
+        await device.set_heat_setpoint(Temperature(bad_temp, "F"))
+    assert mock_patch.call_count == 0
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("bad_temp", [34, 100])
+async def test_thm_set_cool_setpoint_out_of_range(thm_with_patch, bad_temp):
+    _, device, mock_patch = thm_with_patch
+    with pytest.raises(InvalidParameterError):
+        await device.set_cool_setpoint(Temperature(bad_temp, "F"))
+    assert mock_patch.call_count == 0
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("bad", [None, 72, "72", 72.0])
+async def test_thm_set_heat_setpoint_wrong_type(thm_with_patch, bad):
+    _, device, mock_patch = thm_with_patch
+    with pytest.raises(InvalidParameterError):
+        await device.set_heat_setpoint(bad)
+    assert mock_patch.call_count == 0
+
+
+@pytest.mark.set_params
+async def test_thm_set_heat_cool_setpoints_single_patch(thm_with_patch):
+    _, device, mock_patch = thm_with_patch
+    await device.set_heat_cool_setpoints(
+        Temperature(67, "F"), Temperature(79, "F"),
+    )
+    # Single PATCH containing both fields.
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    assert kwargs["json"] == {"rmT": 67, "rmCT": 79}
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("heat,cool", [
+    (70, 70),  # equal — no deadband
+    (75, 70),  # inverted
+    (80, 79),  # heat above cool
+])
+async def test_thm_set_heat_cool_setpoints_rejects_invalid_pair(thm_with_patch, heat, cool):
+    _, device, mock_patch = thm_with_patch
+    with pytest.raises(InvalidParameterError):
+        await device.set_heat_cool_setpoints(
+            Temperature(heat, "F"), Temperature(cool, "F"),
+        )
+    assert mock_patch.call_count == 0
+
+
+@pytest.mark.set_params
+async def test_thm_set_heat_cool_setpoints_validates_each_side(thm_with_patch):
+    _, device, mock_patch = thm_with_patch
+    # heat out of range
+    with pytest.raises(InvalidParameterError):
+        await device.set_heat_cool_setpoints(
+            Temperature(34, "F"), Temperature(79, "F"),
+        )
+    # cool out of range
+    with pytest.raises(InvalidParameterError):
+        await device.set_heat_cool_setpoints(
+            Temperature(67, "F"), Temperature(100, "F"),
+        )
+    assert mock_patch.call_count == 0
+
+
+# ---------------------------------------------------------------------------
+# THM 0.5.2: get_heat_setpoint / get_cool_setpoint / get_active_demands
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("payload,expected", [
+    ({"rmT": 67}, 67),
+    ({"rmT": 72}, 72),
+    ({}, None),
+    ({"rmT": None}, None),
+])
+async def test_thm_get_heat_setpoint(thm_with_patch, payload, expected):
+    _, device, _ = thm_with_patch
+    result = await device.get_heat_setpoint(payload)
+    if expected is None:
+        assert result is None
+    else:
+        assert result.to_fahrenheit() == expected
+
+
+@pytest.mark.parametrize("payload,expected", [
+    ({"rmCT": 79}, 79),
+    ({"rmCT": 84}, 84),
+    ({}, None),
+    ({"rmCT": None}, None),
+])
+async def test_thm_get_cool_setpoint(thm_with_patch, payload, expected):
+    _, device, _ = thm_with_patch
+    result = await device.get_cool_setpoint(payload)
+    if expected is None:
+        assert result is None
+    else:
+        assert result.to_fahrenheit() == expected
+
+
+@pytest.mark.parametrize("dmd,expected", [
+    (0, []),
+    (2, ["heating"]),       # heat call only
+    (64, ["cooling"]),      # cool call only
+    (128, ["fan"]),         # fan only
+    (66, ["heating", "cooling"]),  # both bits (defensive: shouldn't happen but model it)
+    (130, ["heating", "fan"]),     # heat + fan
+    (192, ["cooling", "fan"]),     # cool + fan
+    ("not-an-int", []),
+    (None, []),  # field present but None
+])
+async def test_thm_get_active_demands(thm_with_patch, dmd, expected):
+    _, device, _ = thm_with_patch
+    result = await device.get_active_demands({"dmd": dmd})
+    assert result == expected
+
+
+async def test_thm_get_active_demands_missing_field(thm_with_patch):
+    _, device, _ = thm_with_patch
+    result = await device.get_active_demands({})
+    assert result == []
