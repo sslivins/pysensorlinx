@@ -114,6 +114,15 @@ THM_COOL_SETPOINT = "rmCT"     # int °F — cool-mode room setpoint
 THM_SCHEDULE_ENABLE = "pgmble" # 0=schedule disabled, 1=schedule enabled
 THM_HUMIDITY_MODE = "useHum"   # 0=off, 1=on, 2=auto
 THM_HUMIDITY_TARGET = "hmT"    # int % relative humidity (0-100)
+THM_DEMAND = "dmd"             # bitfield: heat=0x02, cool=0x40, fan=0x80
+# `dmd` bit assignments confirmed via paired dumps from a live THM-0600
+# (Stairway thermostat) on 2026-04-30: dmd=2 with active heat call, dmd=64
+# with active cool call, dmd=128 with fan-only operation. The cloud's
+# `isHeating`/`isCooling` flags are unreliable (`isCooling` was observed
+# false even with cooling demand active); `dmd` is the reliable source.
+THM_DMD_HEAT_BIT = 0x02
+THM_DMD_COOL_BIT = 0x40
+THM_DMD_FAN_BIT = 0x80
 ZON_APP_BUTTON = "aBut"        # 0=off, 1=on
 ZON_DHW_TARGET = "dhwT"        # int °F (auxiliary heat / DHW setpoint)
 # ZON aux setpoint reuses the same `dhwT` key as ECO DHW target (see DHW_TARGET_TEMP).
@@ -3287,6 +3296,190 @@ class ThmDevice(SensorlinxDevice):
             self.device_id,
             **{THM_HUMIDITY_TARGET: value},
         )
+
+    async def get_heat_setpoint(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[Temperature]:
+        """
+        Return the heat-side setpoint (``rmT``) in °F.
+
+        This is the dedicated heat-mode setpoint and is independent of the
+        active changeover mode: it always reports the heat target, even
+        when the thermostat is in Auto or Cool. Prefer this over
+        :py:meth:`get_target_temperature` which reads the display-only
+        ``target.value`` field that is biased to one side in Auto mode.
+
+        Returns:
+            ``Temperature`` in °F, or ``None`` when the field is missing.
+        """
+        info = await self._resolve_device_info(device_info)
+        value = info.get(THM_HEAT_SETPOINT)
+        if value is None:
+            return None
+        return Temperature(value, "F")
+
+    async def get_cool_setpoint(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[Temperature]:
+        """
+        Return the cool-side setpoint (``rmCT``) in °F.
+
+        Mirror of :py:meth:`get_heat_setpoint` for the cool side. Always
+        reports the cool target regardless of changeover mode. The HBX
+        cloud's ``target`` block does NOT expose the cool setpoint when in
+        Auto mode (``target.type`` is permanently ``"heat"`` in Auto), so
+        this is the only reliable way to read the cool target.
+
+        Returns:
+            ``Temperature`` in °F, or ``None`` when the field is missing.
+        """
+        info = await self._resolve_device_info(device_info)
+        value = info.get(THM_COOL_SETPOINT)
+        if value is None:
+            return None
+        return Temperature(value, "F")
+
+    @staticmethod
+    def _validate_setpoint(value: Temperature, label: str) -> int:
+        """Validate a setpoint Temperature and return its integer °F value."""
+        if not isinstance(value, Temperature):
+            _LOGGER.error(
+                "THM %s setpoint must be a Temperature instance (got %r).",
+                label, type(value),
+            )
+            raise InvalidParameterError(
+                f"THM {label} setpoint must be a Temperature instance."
+            )
+        temp_f = value.to_fahrenheit()
+        if not (35 <= temp_f <= 99):
+            _LOGGER.error(
+                "THM %s setpoint must be between 35°F and 99°F (got %s°F).",
+                label, temp_f,
+            )
+            raise InvalidParameterError(
+                f"THM {label} setpoint must be between 35°F and 99°F."
+            )
+        return int(round(temp_f))
+
+    async def set_heat_setpoint(self, value: Temperature) -> None:
+        """
+        Set the heat-side setpoint (``rmT``) directly.
+
+        Works in any changeover mode (Auto/Heat/Cool). Use this instead of
+        :py:meth:`set_target_temperature` when you need to be explicit
+        about which side you're writing — particularly important in Auto
+        mode where the legacy method's ``target.type`` lookup is biased
+        to the heat side and cannot disambiguate.
+
+        Args:
+            value: A :class:`Temperature` in the 35°F–99°F range.
+
+        Raises:
+            InvalidParameterError: If ``value`` is not a Temperature or is
+                outside the safe range.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        temp_int = self._validate_setpoint(value, "heat")
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{THM_HEAT_SETPOINT: temp_int},
+        )
+
+    async def set_cool_setpoint(self, value: Temperature) -> None:
+        """
+        Set the cool-side setpoint (``rmCT``) directly.
+
+        Mirror of :py:meth:`set_heat_setpoint`. Works in any changeover
+        mode. Required for adjusting the cool side while in Auto mode,
+        which the legacy :py:meth:`set_target_temperature` cannot do.
+
+        Args:
+            value: A :class:`Temperature` in the 35°F–99°F range.
+
+        Raises:
+            InvalidParameterError: If ``value`` is not a Temperature or is
+                outside the safe range.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        temp_int = self._validate_setpoint(value, "cool")
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{THM_COOL_SETPOINT: temp_int},
+        )
+
+    async def set_heat_cool_setpoints(
+        self, heat: Temperature, cool: Temperature
+    ) -> None:
+        """
+        Set both heat (``rmT``) and cool (``rmCT``) setpoints in a single PATCH.
+
+        Use this for HEAT_COOL / Auto-mode dual-setpoint writes to avoid
+        the transient inconsistent state that two sequential PATCHes would
+        produce.
+
+        Args:
+            heat: Heat-side ``Temperature`` (35°F–99°F).
+            cool: Cool-side ``Temperature`` (35°F–99°F). Must be strictly
+                greater than ``heat`` so the deadband is non-zero.
+
+        Raises:
+            InvalidParameterError: If either value is invalid or if
+                ``heat >= cool``.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        heat_int = self._validate_setpoint(heat, "heat")
+        cool_int = self._validate_setpoint(cool, "cool")
+        if heat_int >= cool_int:
+            _LOGGER.error(
+                "THM heat setpoint (%s°F) must be lower than cool setpoint (%s°F).",
+                heat_int, cool_int,
+            )
+            raise InvalidParameterError(
+                "THM heat setpoint must be lower than cool setpoint."
+            )
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{
+                THM_HEAT_SETPOINT: heat_int,
+                THM_COOL_SETPOINT: cool_int,
+            },
+        )
+
+    async def get_active_demands(
+        self, device_info: Optional[Dict] = None
+    ) -> List[str]:
+        """
+        Return the active demand flags decoded from the ``dmd`` bitfield.
+
+        Returns a list whose elements are a subset of
+        ``["heating", "cooling", "fan"]``. Multiple flags can be set at
+        once (e.g. fan plus heating). Prefer this over the cloud's
+        ``isHeating`` / ``isCooling`` booleans, which were observed to be
+        unreliable: ``isCooling`` reads ``False`` even when the cool-side
+        demand is active.
+
+        The bitfield mapping (heat=0x02, cool=0x40, fan=0x80) was
+        confirmed against five paired before/after device dumps from a
+        live THM-0600 on 2026-04-30.
+        """
+        info = await self._resolve_device_info(device_info)
+        dmd = info.get(THM_DEMAND)
+        if not isinstance(dmd, int):
+            return []
+        active: List[str] = []
+        if dmd & THM_DMD_HEAT_BIT:
+            active.append("heating")
+        if dmd & THM_DMD_COOL_BIT:
+            active.append("cooling")
+        if dmd & THM_DMD_FAN_BIT:
+            active.append("fan")
+        return active
 
     async def _resolve_device_info(
         self, device_info: Optional[Dict] = None
