@@ -628,3 +628,134 @@ async def test_thm_get_active_demands_missing_field(thm_with_patch):
     _, device, _ = thm_with_patch
     result = await device.get_active_demands({})
     assert result == []
+
+
+# ---------------------------------------------------------------------------
+# THM 0.5.3: get/set away-mode setpoints (awayMode.heatTarget.value etc.)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("payload,expected_f", [
+    ({"awayMode": {"heatTarget": {"value": 53}}}, 53),
+    ({"awayMode": {"heatTarget": {"value": 58}}}, 58),
+])
+async def test_thm_get_away_heat_setpoint(thm_with_patch, payload, expected_f):
+    _, device, _ = thm_with_patch
+    result = await device.get_away_heat_setpoint(payload)
+    assert result is not None
+    assert result.to_fahrenheit() == expected_f
+
+
+@pytest.mark.parametrize("payload", [
+    {},
+    {"awayMode": {}},
+    {"awayMode": {"heatTarget": {}}},
+    {"awayMode": {"heatTarget": {"value": None}}},
+])
+async def test_thm_get_away_heat_setpoint_missing(thm_with_patch, payload):
+    _, device, _ = thm_with_patch
+    result = await device.get_away_heat_setpoint(payload)
+    assert result is None
+
+
+@pytest.mark.parametrize("payload,expected_f", [
+    ({"awayMode": {"coolTarget": {"value": 87}}}, 87),
+    ({"awayMode": {"coolTarget": {"value": 92}}}, 92),
+])
+async def test_thm_get_away_cool_setpoint(thm_with_patch, payload, expected_f):
+    _, device, _ = thm_with_patch
+    result = await device.get_away_cool_setpoint(payload)
+    assert result is not None
+    assert result.to_fahrenheit() == expected_f
+
+
+@pytest.mark.parametrize("payload", [
+    {},
+    {"awayMode": {}},
+    {"awayMode": {"coolTarget": {}}},
+])
+async def test_thm_get_away_cool_setpoint_missing(thm_with_patch, payload):
+    _, device, _ = thm_with_patch
+    result = await device.get_away_cool_setpoint(payload)
+    assert result is None
+
+
+@pytest.mark.set_params
+async def test_thm_set_away_heat_setpoint(thm_with_patch):
+    _, device, mock_patch = thm_with_patch
+    await device.set_away_heat_setpoint(Temperature(58, "F"))
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    # Partial-nested PATCH so the cool side is preserved.
+    assert kwargs["json"] == {"awayMode": {"heatTarget": {"value": 58}}}
+
+
+@pytest.mark.set_params
+async def test_thm_set_away_cool_setpoint(thm_with_patch):
+    _, device, mock_patch = thm_with_patch
+    await device.set_away_cool_setpoint(Temperature(92, "F"))
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    assert kwargs["json"] == {"awayMode": {"coolTarget": {"value": 92}}}
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("bad_temp", [34, 100])
+async def test_thm_set_away_heat_setpoint_out_of_range(thm_with_patch, bad_temp):
+    _, device, mock_patch = thm_with_patch
+    with pytest.raises(InvalidParameterError):
+        await device.set_away_heat_setpoint(Temperature(bad_temp, "F"))
+    assert mock_patch.call_count == 0
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("bad", [None, 72, "72", 72.0])
+async def test_thm_set_away_heat_setpoint_wrong_type(thm_with_patch, bad):
+    _, device, mock_patch = thm_with_patch
+    with pytest.raises(InvalidParameterError):
+        await device.set_away_heat_setpoint(bad)
+    assert mock_patch.call_count == 0
+
+
+@pytest.mark.set_params
+async def test_thm_set_away_heat_cool_setpoints_single_patch(thm_with_patch):
+    _, device, mock_patch = thm_with_patch
+    await device.set_away_heat_cool_setpoints(
+        Temperature(58, "F"), Temperature(92, "F"),
+    )
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    assert kwargs["json"] == {
+        "awayMode": {
+            "heatTarget": {"value": 58},
+            "coolTarget": {"value": 92},
+        },
+    }
+
+
+@pytest.mark.set_params
+@pytest.mark.parametrize("heat,cool", [
+    (70, 70),
+    (75, 70),
+    (80, 79),
+])
+async def test_thm_set_away_heat_cool_setpoints_rejects_invalid_pair(thm_with_patch, heat, cool):
+    _, device, mock_patch = thm_with_patch
+    with pytest.raises(InvalidParameterError):
+        await device.set_away_heat_cool_setpoints(
+            Temperature(heat, "F"), Temperature(cool, "F"),
+        )
+    assert mock_patch.call_count == 0
+
+
+@pytest.mark.set_params
+async def test_thm_set_away_heat_cool_setpoints_validates_each_side(thm_with_patch):
+    _, device, mock_patch = thm_with_patch
+    with pytest.raises(InvalidParameterError):
+        await device.set_away_heat_cool_setpoints(
+            Temperature(34, "F"), Temperature(79, "F"),
+        )
+    with pytest.raises(InvalidParameterError):
+        await device.set_away_heat_cool_setpoints(
+            Temperature(67, "F"), Temperature(100, "F"),
+        )
+    assert mock_patch.call_count == 0

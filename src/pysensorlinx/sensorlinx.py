@@ -111,6 +111,15 @@ THM_AWAY = "away"              # 0=off, 1=on
 THM_FAN_MODE = "fnMode"        # 0=Off, 1=On, 2=Intermittent
 THM_HEAT_SETPOINT = "rmT"      # int °F — heat-mode room setpoint
 THM_COOL_SETPOINT = "rmCT"     # int °F — cool-mode room setpoint
+# Away-mode setpoints live in a nested object under `awayMode`. Unlike rmT/rmCT,
+# these are only the active setpoints when the THM Away preset is on. Field
+# paths confirmed via paired before/after dumps from a live THM-0600 on
+# 2026-05-01: in away mode, baseline awayMode.heatTarget.value=53 / coolTarget=87,
+# then +5°F each via the app popup → 58 / 92.
+THM_AWAY_MODE = "awayMode"
+THM_AWAY_HEAT_TARGET = "heatTarget"
+THM_AWAY_COOL_TARGET = "coolTarget"
+THM_AWAY_TARGET_VALUE = "value"
 THM_SCHEDULE_ENABLE = "pgmble" # 0=schedule disabled, 1=schedule enabled
 THM_HUMIDITY_MODE = "useHum"   # 0=off, 1=on, 2=auto
 THM_HUMIDITY_TARGET = "hmT"    # int % relative humidity (0-100)
@@ -3448,6 +3457,147 @@ class ThmDevice(SensorlinxDevice):
             **{
                 THM_HEAT_SETPOINT: heat_int,
                 THM_COOL_SETPOINT: cool_int,
+            },
+        )
+
+    async def get_away_heat_setpoint(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[Temperature]:
+        """
+        Return the away-mode heat setpoint in °F.
+
+        Reads the nested ``awayMode.heatTarget.value`` field. This is the
+        active heat target only while the THM Away preset is on; in Home
+        mode the active heat target is ``rmT`` (see
+        :py:meth:`get_heat_setpoint`).
+
+        Returns:
+            ``Temperature`` in °F, or ``None`` when the field is missing.
+
+        Note:
+            Field path confirmed via paired before/after dumps from a
+            live THM-0600 on 2026-05-01: changing the away heat setpoint
+            in the HBX app's away-temps popup moved
+            ``awayMode.heatTarget.value`` from 53 to 58.
+        """
+        info = await self._resolve_device_info(device_info)
+        block = info.get(THM_AWAY_MODE) or {}
+        target = block.get(THM_AWAY_HEAT_TARGET) or {}
+        value = target.get(THM_AWAY_TARGET_VALUE)
+        if value is None:
+            return None
+        return Temperature(value, "F")
+
+    async def get_away_cool_setpoint(
+        self, device_info: Optional[Dict] = None
+    ) -> Optional[Temperature]:
+        """
+        Return the away-mode cool setpoint in °F.
+
+        Mirror of :py:meth:`get_away_heat_setpoint` for the cool side,
+        reading ``awayMode.coolTarget.value``.
+
+        Returns:
+            ``Temperature`` in °F, or ``None`` when the field is missing.
+        """
+        info = await self._resolve_device_info(device_info)
+        block = info.get(THM_AWAY_MODE) or {}
+        target = block.get(THM_AWAY_COOL_TARGET) or {}
+        value = target.get(THM_AWAY_TARGET_VALUE)
+        if value is None:
+            return None
+        return Temperature(value, "F")
+
+    async def set_away_heat_setpoint(self, value: Temperature) -> None:
+        """
+        Set the away-mode heat setpoint (``awayMode.heatTarget.value``).
+
+        Sends a partial-nested PATCH so the cool side is preserved.
+
+        Args:
+            value: A :class:`Temperature` in the 35°F–99°F range.
+
+        Raises:
+            InvalidParameterError: If ``value`` is invalid.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        temp_int = self._validate_setpoint(value, "away heat")
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{
+                THM_AWAY_MODE: {
+                    THM_AWAY_HEAT_TARGET: {THM_AWAY_TARGET_VALUE: temp_int},
+                },
+            },
+        )
+
+    async def set_away_cool_setpoint(self, value: Temperature) -> None:
+        """
+        Set the away-mode cool setpoint (``awayMode.coolTarget.value``).
+
+        Mirror of :py:meth:`set_away_heat_setpoint`.
+
+        Args:
+            value: A :class:`Temperature` in the 35°F–99°F range.
+
+        Raises:
+            InvalidParameterError: If ``value`` is invalid.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        temp_int = self._validate_setpoint(value, "away cool")
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{
+                THM_AWAY_MODE: {
+                    THM_AWAY_COOL_TARGET: {THM_AWAY_TARGET_VALUE: temp_int},
+                },
+            },
+        )
+
+    async def set_away_heat_cool_setpoints(
+        self, heat: Temperature, cool: Temperature
+    ) -> None:
+        """
+        Set both away-mode heat and cool setpoints in a single PATCH.
+
+        Use this for atomic dual-setpoint writes to the away preset to
+        avoid the transient inconsistent state two sequential PATCHes
+        would produce.
+
+        Args:
+            heat: Away-side heat ``Temperature`` (35°F–99°F).
+            cool: Away-side cool ``Temperature`` (35°F–99°F). Must be
+                strictly greater than ``heat``.
+
+        Raises:
+            InvalidParameterError: If either value is invalid or
+                ``heat >= cool``.
+            LoginError: If authentication fails.
+            RuntimeError: If the API call fails for other reasons.
+        """
+        heat_int = self._validate_setpoint(heat, "away heat")
+        cool_int = self._validate_setpoint(cool, "away cool")
+        if heat_int >= cool_int:
+            _LOGGER.error(
+                "THM away heat setpoint (%s°F) must be lower than away cool "
+                "setpoint (%s°F).",
+                heat_int, cool_int,
+            )
+            raise InvalidParameterError(
+                "THM away heat setpoint must be lower than away cool setpoint."
+            )
+        await self.sensorlinx.patch_device(
+            self.building_id,
+            self.device_id,
+            **{
+                THM_AWAY_MODE: {
+                    THM_AWAY_HEAT_TARGET: {THM_AWAY_TARGET_VALUE: heat_int},
+                    THM_AWAY_COOL_TARGET: {THM_AWAY_TARGET_VALUE: cool_int},
+                },
             },
         )
 
