@@ -706,18 +706,11 @@ async def test_thm_set_away_heat_setpoint(thm_with_patch):
     await device.set_away_heat_setpoint(Temperature(58, "F"))
     assert mock_patch.call_count == 1
     _, kwargs = mock_patch.call_args
-    # Full-block PATCH (read-modify-write): the cloud silently ignores
-    # partial-nested PATCHes so we splice into a complete copy of the
-    # existing awayMode block.
-    assert kwargs["json"] == {
-        "awayMode": {
-            "title": "Away",
-            "activated": True,
-            "pgm": 2,
-            "heatTarget": {"enabled": True, "value": 58},
-            "coolTarget": {"enabled": True, "value": 87},
-        },
-    }
+    # Flat-scalar PATCH: hRmT is the writable away-heat field. The cloud
+    # silently drops PATCHes to the nested `awayMode` block, but writes
+    # to the flat `hRmT` scalar land cleanly and propagate through to
+    # `awayMode.heatTarget.value` server-side.
+    assert kwargs["json"] == {"hRmT": 58}
 
 
 @pytest.mark.set_params
@@ -726,15 +719,7 @@ async def test_thm_set_away_cool_setpoint(thm_with_patch):
     await device.set_away_cool_setpoint(Temperature(92, "F"))
     assert mock_patch.call_count == 1
     _, kwargs = mock_patch.call_args
-    assert kwargs["json"] == {
-        "awayMode": {
-            "title": "Away",
-            "activated": True,
-            "pgm": 2,
-            "heatTarget": {"enabled": True, "value": 53},
-            "coolTarget": {"enabled": True, "value": 92},
-        },
-    }
+    assert kwargs["json"] == {"hRmCT": 92}
 
 
 @pytest.mark.set_params
@@ -763,15 +748,7 @@ async def test_thm_set_away_heat_cool_setpoints_single_patch(thm_with_patch):
     )
     assert mock_patch.call_count == 1
     _, kwargs = mock_patch.call_args
-    assert kwargs["json"] == {
-        "awayMode": {
-            "title": "Away",
-            "activated": True,
-            "pgm": 2,
-            "heatTarget": {"enabled": True, "value": 58},
-            "coolTarget": {"enabled": True, "value": 92},
-        },
-    }
+    assert kwargs["json"] == {"hRmT": 58, "hRmCT": 92}
 
 
 @pytest.mark.set_params
@@ -801,21 +778,3 @@ async def test_thm_set_away_heat_cool_setpoints_validates_each_side(thm_with_pat
             Temperature(67, "F"), Temperature(100, "F"),
         )
     assert mock_patch.call_count == 0
-
-
-@pytest.mark.set_params
-async def test_thm_set_away_heat_setpoint_seeds_block_when_missing():
-    """If the device dump has no ``awayMode`` block at all (older firmware
-    or a freshly-paired device that hasn't been to the away-popup yet), we
-    fall back to a minimal-but-valid block instead of raising."""
-    sensorlinx, mock_patch = _patched_sensorlinx(device_payload={"id": "thm456"})
-    device = ThmDevice(
-        sensorlinx=sensorlinx, building_id="building123", device_id="thm456",
-    )
-    await device.set_away_heat_setpoint(Temperature(58, "F"))
-    assert mock_patch.call_count == 1
-    _, kwargs = mock_patch.call_args
-    # heatTarget gets the new value, coolTarget gets a sane default shape.
-    body = kwargs["json"]
-    assert body["awayMode"]["heatTarget"] == {"enabled": True, "value": 58}
-    assert "coolTarget" in body["awayMode"]
