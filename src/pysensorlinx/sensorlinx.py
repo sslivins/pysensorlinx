@@ -445,6 +445,7 @@ class Sensorlinx:
             req_kwargs.setdefault("proxy", self.proxy_url)
             session_method = getattr(self._session, method.lower())
             async with session_method(url, headers=req_headers, **req_kwargs) as resp:
+                _LOGGER.debug("%s %s -> %s", method, url, resp.status)
                 if resp.status == 401 and retry_on_401 and attempt == 1:
                     body_preview = await resp.text()
                     _LOGGER.info(
@@ -991,11 +992,13 @@ class Sensorlinx:
             )
 
         url = f"{HOST_URL}/{DEVICES_ENDPOINT_TEMPLATE.format(building_id=building_id)}/{device_id}"
+        body = dict(fields)
+        _LOGGER.debug("patch_device url=%s body=%s", url, body)
         try:
             response = await self._authenticated_request(
                 "PATCH",
                 url,
-                json=dict(fields),
+                json=body,
                 headers={"Content-Type": "application/json"},
             )
             _LOGGER.debug(f"Response from patch_device: {response}")
@@ -3521,6 +3524,7 @@ class ThmDevice(SensorlinxDevice):
         if not isinstance(info, dict):
             info = {}
         block = info.get(THM_AWAY_MODE)
+        _LOGGER.debug("_load_away_mode_block: existing block=%s", block)
         if not isinstance(block, dict):
             block = {}
         # Shallow copy of the top-level block plus copies of the nested
