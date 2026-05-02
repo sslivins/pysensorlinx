@@ -3508,11 +3508,37 @@ class ThmDevice(SensorlinxDevice):
             return None
         return Temperature(value, "F")
 
+    async def _load_away_mode_block(self) -> Dict:
+        """Fetch the current ``awayMode`` block for read-modify-write.
+
+        The cloud silently rejects partial-nested PATCHes that don't
+        include the full block (title/activated/pgm/heatTarget/
+        coolTarget), so every away-setpoint setter has to splice into a
+        complete copy. Returns a deep-ish copy of the existing block,
+        or a sane default if the device hasn't seeded one yet.
+        """
+        info = await self.sensorlinx.get_devices(self.building_id, self.device_id)
+        if not isinstance(info, dict):
+            info = {}
+        block = info.get(THM_AWAY_MODE)
+        if not isinstance(block, dict):
+            block = {}
+        # Shallow copy of the top-level block plus copies of the nested
+        # heatTarget/coolTarget so we can mutate them safely.
+        result = dict(block)
+        for key in (THM_AWAY_HEAT_TARGET, THM_AWAY_COOL_TARGET):
+            target = result.get(key)
+            result[key] = dict(target) if isinstance(target, dict) else {"enabled": True}
+        return result
+
     async def set_away_heat_setpoint(self, value: Temperature) -> None:
         """
         Set the away-mode heat setpoint (``awayMode.heatTarget.value``).
 
-        Sends a partial-nested PATCH so the cool side is preserved.
+        Performs a read-modify-write of the entire ``awayMode`` block:
+        the cloud silently rejects partial-nested PATCHes that omit
+        ``title``/``activated``/``pgm``/``coolTarget``, so the existing
+        block is fetched first and the new value spliced in.
 
         Args:
             value: A :class:`Temperature` in the 35°F–99°F range.
@@ -3523,21 +3549,20 @@ class ThmDevice(SensorlinxDevice):
             RuntimeError: If the API call fails for other reasons.
         """
         temp_int = self._validate_setpoint(value, "away heat")
+        block = await self._load_away_mode_block()
+        block[THM_AWAY_HEAT_TARGET][THM_AWAY_TARGET_VALUE] = temp_int
         await self.sensorlinx.patch_device(
             self.building_id,
             self.device_id,
-            **{
-                THM_AWAY_MODE: {
-                    THM_AWAY_HEAT_TARGET: {THM_AWAY_TARGET_VALUE: temp_int},
-                },
-            },
+            **{THM_AWAY_MODE: block},
         )
 
     async def set_away_cool_setpoint(self, value: Temperature) -> None:
         """
         Set the away-mode cool setpoint (``awayMode.coolTarget.value``).
 
-        Mirror of :py:meth:`set_away_heat_setpoint`.
+        Mirror of :py:meth:`set_away_heat_setpoint` — uses the same
+        read-modify-write strategy on the full ``awayMode`` block.
 
         Args:
             value: A :class:`Temperature` in the 35°F–99°F range.
@@ -3548,14 +3573,12 @@ class ThmDevice(SensorlinxDevice):
             RuntimeError: If the API call fails for other reasons.
         """
         temp_int = self._validate_setpoint(value, "away cool")
+        block = await self._load_away_mode_block()
+        block[THM_AWAY_COOL_TARGET][THM_AWAY_TARGET_VALUE] = temp_int
         await self.sensorlinx.patch_device(
             self.building_id,
             self.device_id,
-            **{
-                THM_AWAY_MODE: {
-                    THM_AWAY_COOL_TARGET: {THM_AWAY_TARGET_VALUE: temp_int},
-                },
-            },
+            **{THM_AWAY_MODE: block},
         )
 
     async def set_away_heat_cool_setpoints(
@@ -3566,7 +3589,7 @@ class ThmDevice(SensorlinxDevice):
 
         Use this for atomic dual-setpoint writes to the away preset to
         avoid the transient inconsistent state two sequential PATCHes
-        would produce.
+        would produce. Read-modify-write on the full ``awayMode`` block.
 
         Args:
             heat: Away-side heat ``Temperature`` (35°F–99°F).
@@ -3590,15 +3613,13 @@ class ThmDevice(SensorlinxDevice):
             raise InvalidParameterError(
                 "THM away heat setpoint must be lower than away cool setpoint."
             )
+        block = await self._load_away_mode_block()
+        block[THM_AWAY_HEAT_TARGET][THM_AWAY_TARGET_VALUE] = heat_int
+        block[THM_AWAY_COOL_TARGET][THM_AWAY_TARGET_VALUE] = cool_int
         await self.sensorlinx.patch_device(
             self.building_id,
             self.device_id,
-            **{
-                THM_AWAY_MODE: {
-                    THM_AWAY_HEAT_TARGET: {THM_AWAY_TARGET_VALUE: heat_int},
-                    THM_AWAY_COOL_TARGET: {THM_AWAY_TARGET_VALUE: cool_int},
-                },
-            },
+            **{THM_AWAY_MODE: block},
         )
 
     async def get_active_demands(
