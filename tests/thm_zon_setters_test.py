@@ -24,7 +24,7 @@ from pysensorlinx import (
 from pysensorlinx.sensorlinx import ThmDevice, ZonDevice
 
 
-def _patched_sensorlinx():
+def _patched_sensorlinx(device_payload=None):
     sensorlinx = Sensorlinx()
     sensorlinx._session = MagicMock()
     sensorlinx._session.closed = False
@@ -39,6 +39,27 @@ def _patched_sensorlinx():
     mock_response.text = AsyncMock(return_value="{}")
     mock_patch = MagicMock(return_value=mock_response)
     sensorlinx._session.patch = mock_patch
+
+    # GET mock for read-modify-write setters (pysensorlinx 0.5.4+).
+    # Defaults to a complete awayMode block matching real HBX firmware.
+    if device_payload is None:
+        device_payload = {
+            "awayMode": {
+                "title": "Away",
+                "activated": True,
+                "pgm": 2,
+                "heatTarget": {"enabled": True, "value": 53},
+                "coolTarget": {"enabled": True, "value": 87},
+            },
+        }
+    get_response = MagicMock()
+    get_response.__aenter__ = AsyncMock(return_value=get_response)
+    get_response.__aexit__ = AsyncMock(return_value=None)
+    get_response.status = 200
+    get_response.headers = {"Content-Type": "application/json"}
+    get_response.json = AsyncMock(return_value=device_payload)
+    get_response.text = AsyncMock(return_value="{}")
+    sensorlinx._session.get = MagicMock(return_value=get_response)
     return sensorlinx, mock_patch
 
 
@@ -685,8 +706,18 @@ async def test_thm_set_away_heat_setpoint(thm_with_patch):
     await device.set_away_heat_setpoint(Temperature(58, "F"))
     assert mock_patch.call_count == 1
     _, kwargs = mock_patch.call_args
-    # Partial-nested PATCH so the cool side is preserved.
-    assert kwargs["json"] == {"awayMode": {"heatTarget": {"value": 58}}}
+    # Full-block PATCH (read-modify-write): the cloud silently ignores
+    # partial-nested PATCHes so we splice into a complete copy of the
+    # existing awayMode block.
+    assert kwargs["json"] == {
+        "awayMode": {
+            "title": "Away",
+            "activated": True,
+            "pgm": 2,
+            "heatTarget": {"enabled": True, "value": 58},
+            "coolTarget": {"enabled": True, "value": 87},
+        },
+    }
 
 
 @pytest.mark.set_params
@@ -695,7 +726,15 @@ async def test_thm_set_away_cool_setpoint(thm_with_patch):
     await device.set_away_cool_setpoint(Temperature(92, "F"))
     assert mock_patch.call_count == 1
     _, kwargs = mock_patch.call_args
-    assert kwargs["json"] == {"awayMode": {"coolTarget": {"value": 92}}}
+    assert kwargs["json"] == {
+        "awayMode": {
+            "title": "Away",
+            "activated": True,
+            "pgm": 2,
+            "heatTarget": {"enabled": True, "value": 53},
+            "coolTarget": {"enabled": True, "value": 92},
+        },
+    }
 
 
 @pytest.mark.set_params
@@ -726,8 +765,11 @@ async def test_thm_set_away_heat_cool_setpoints_single_patch(thm_with_patch):
     _, kwargs = mock_patch.call_args
     assert kwargs["json"] == {
         "awayMode": {
-            "heatTarget": {"value": 58},
-            "coolTarget": {"value": 92},
+            "title": "Away",
+            "activated": True,
+            "pgm": 2,
+            "heatTarget": {"enabled": True, "value": 58},
+            "coolTarget": {"enabled": True, "value": 92},
         },
     }
 
@@ -759,3 +801,21 @@ async def test_thm_set_away_heat_cool_setpoints_validates_each_side(thm_with_pat
             Temperature(67, "F"), Temperature(100, "F"),
         )
     assert mock_patch.call_count == 0
+
+
+@pytest.mark.set_params
+async def test_thm_set_away_heat_setpoint_seeds_block_when_missing():
+    """If the device dump has no ``awayMode`` block at all (older firmware
+    or a freshly-paired device that hasn't been to the away-popup yet), we
+    fall back to a minimal-but-valid block instead of raising."""
+    sensorlinx, mock_patch = _patched_sensorlinx(device_payload={"id": "thm456"})
+    device = ThmDevice(
+        sensorlinx=sensorlinx, building_id="building123", device_id="thm456",
+    )
+    await device.set_away_heat_setpoint(Temperature(58, "F"))
+    assert mock_patch.call_count == 1
+    _, kwargs = mock_patch.call_args
+    # heatTarget gets the new value, coolTarget gets a sane default shape.
+    body = kwargs["json"]
+    assert body["awayMode"]["heatTarget"] == {"enabled": True, "value": 58}
+    assert "coolTarget" in body["awayMode"]
